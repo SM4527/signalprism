@@ -4,6 +4,7 @@ import { formatEt } from "@/lib/format";
 import { pollAll } from "@/lib/poll/poll-all";
 import type { SecUrls } from "@/lib/poll/poll-company";
 import { SecClient, SecPaused } from "@/lib/sec/client";
+import { getSecClient } from "@/lib/sec/shared-client";
 import { refreshTickerMap, tickerMapStale } from "@/lib/sec/ticker-map";
 
 const MINUTE_MS = 60_000;
@@ -211,9 +212,8 @@ const g = globalThis as { __signalprismScheduler?: Scheduler };
 /** Start the poller once per process, in live mode only. Mock mode never touches the network. */
 export function startScheduler(db: Database.Database, config: Config): Scheduler | undefined {
   if (config.DATA_MODE !== "live" || g.__signalprismScheduler) return g.__signalprismScheduler;
-  const client = new SecClient({ userAgent: config.SEC_USER_AGENT! });
   const urls = { dataUrl: config.SEC_DATA_URL, archivesUrl: config.SEC_ARCHIVES_URL };
-  g.__signalprismScheduler = new Scheduler({ db, client, urls });
+  g.__signalprismScheduler = new Scheduler({ db, client: getSecClient(config), urls });
   g.__signalprismScheduler.start();
   installSignalHandlers(g.__signalprismScheduler);
   return g.__signalprismScheduler;

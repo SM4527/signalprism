@@ -7,9 +7,12 @@ services:
       dockerfile: docker/Dockerfile
     ports:
       - "127.0.0.1:8500:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DATA_MODE: mock
       DB_PATH: /data/signalprism.db
+      FOLIOPRISM_URL: http://host.docker.internal:8420
     volumes:
       - ../data/sample:/data
       - ../tests/fixtures:/app/tests/fixtures:ro

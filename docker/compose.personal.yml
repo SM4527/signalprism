@@ -10,6 +10,9 @@ services:
     ports:
       - "127.0.0.1:${PERSONAL_PORT:?set PERSONAL_PORT in .env.personal}:3000"
     env_file: ../.env.personal
+    # FOLIOPRISM_URL is set in .env.personal only.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DATA_MODE: live
       DB_PATH: /data/signalprism.db

@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { formatEt } from "@/lib/format";
 import { getPollStatus } from "@/lib/poll/poll-all";
 import { parseErrors, parseWarnings, pendingFetchFailures, recentPollRuns } from "@/lib/queries/status";
+import { lastRefresh } from "@/lib/watchlist/refresh";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,23 @@ function Stat({ k, v }: { k: string; v: React.ReactNode }) {
       <div className="text-xs text-muted-foreground">{k}</div>
       <div className="font-mono text-lg">{v}</div>
     </div>
+  );
+}
+
+/** Result of the last FolioPrism refresh; no live call on page load. */
+function FolioStatus({ configured }: { configured: boolean }) {
+  const s = lastRefresh();
+  const text = !configured
+    ? "not configured"
+    : !s
+      ? "no refresh yet"
+      : s.ok
+        ? `reachable, last refresh ${formatEt(s.at)}: ${s.direct} direct, ${s.funds} through funds, ${s.notTracked.length} not tracked, ${s.noCoverage} skipped without coverage`
+        : `unreachable or unreadable (${s.error}), last attempt ${formatEt(s.at)}`;
+  return (
+    <p className="text-sm text-muted-foreground" data-testid="folioprism-status">
+      FolioPrism: {text}
+    </p>
   );
 }
 
@@ -98,8 +116,8 @@ export default function StatusPage() {
         <h2 className="mb-1 font-semibold">Integrations</h2>
         <ul className="text-sm text-muted-foreground">
           <li>Pushover usage: not configured yet</li>
-          <li>FolioPrism: not configured yet</li>
         </ul>
+        <FolioStatus configured={!!config.FOLIOPRISM_URL} />
       </section>
     </div>
   );

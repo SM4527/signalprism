@@ -13,4 +13,6 @@ export async function register() {
   }
   const { startScheduler } = await import("@/lib/scheduler");
   startScheduler(db, config);
+  const { startFolioRefresh } = await import("@/lib/watchlist/folio-timer");
+  startFolioRefresh(db, config);
 }

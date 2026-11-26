@@ -52,7 +52,7 @@ export default async function SignalsPage({ searchParams }: PageProps<"/">) {
           </select>
         </label>
         <label className="flex items-center gap-1">
-          <input name="held" type="checkbox" value="1" defaultChecked={filters.heldOnly} /> Held only
+          <input name="held" type="checkbox" value="1" defaultChecked={filters.heldOnly} /> Held now
         </label>
         <label className="flex items-center gap-1">
           <input name="rule" type="checkbox" value="1" defaultChecked={filters.matchesRule} /> Matches default rule

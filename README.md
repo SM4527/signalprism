@@ -33,6 +33,16 @@ docker compose --env-file .env.personal -p signalprism-personal -f docker/compos
 
 The container logs one line per scheduler event (started, lock claimed or waiting, tick ran or skipped, next tick in ET).
 
+## FolioPrism
+
+Set `FOLIOPRISM_URL` and the watch list is rebuilt from FolioPrism at start, daily, and with the "Refresh from FolioPrism" button on Watchlist: direct stocks plus the top 25 stocks held through funds. Funds are told apart by FolioPrism's own data, never by SEC company numbers. Manual tickers stay. Badges and the "Held now" filter show current holdings, so older signals show today's holdings. Holdings stay in memory; only `in_direct`, `in_funds`, `in_portfolio` and `held_via` are stored.
+
+The host must be `127.0.0.1`, `localhost`, `[::1]`, `host.docker.internal` or listed in `PRISM_NET_HOSTS`, or the app refuses to start. FolioPrism stays bound to `127.0.0.1` on the host. From a container, `host.docker.internal` (mapped with `extra_hosts: host.docker.internal:host-gateway` in both compose files) reaches it; the sample stack uses `http://host.docker.internal:8420`, checked from inside the container. The personal stack sets `FOLIOPRISM_URL` in `.env.personal`.
+
+Fallback if `host.docker.internal` does not reach FolioPrism: put both containers on one external Docker network (`docker network create prism-net`), attach both services to it, and set `FOLIOPRISM_URL=http://<folioprism-container>:<port>` with `PRISM_NET_HOSTS=<folioprism-container>`.
+
+Watchlist add, remove and refresh are POST routes that answer loopback requests only (by `Host` and `Origin`).
+
 ## Development
 
 ```

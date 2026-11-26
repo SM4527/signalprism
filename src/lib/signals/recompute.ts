@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { detectClusters, saveClusters } from "./clusters";
 import { monthsBefore } from "./dates";
+import { syncHeldVia } from "./held";
 import { isLive, loadIssuerRows, personKey, type SignalRow } from "./issuer-rows";
 import { scoreSignal } from "./score";
 import { recomputeSupersession } from "./supersede";
@@ -25,6 +26,7 @@ function isFirstBuy(r: SignalRow, live: SignalRow[]): boolean {
  * Returns, per amending signal id, the signal it replaced.
  */
 export function recomputeIssuer(db: Database.Database, issuerCik: string, anchorDate: string) {
+  syncHeldVia(db, issuerCik);
   const rows = loadIssuerRows(db, issuerCik);
   const replaced = recomputeSupersession(db, issuerCik, rows);
   const clusters = detectClusters(rows);

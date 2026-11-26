@@ -15,7 +15,7 @@ describe("ensureTickerMap", () => {
     fake.requests = [];
     const db = openDb(":memory:");
     expect(await ensureTickerMap(db, loadConfig({ SEC_ARCHIVES_URL: fake.url }), NOW)).toBe(true);
-    expect(count(db)).toBe(10);
+    expect(count(db)).toBe(24);
     expect(db.prepare("SELECT cik FROM ticker_map WHERE ticker = 'ACMR'").pluck().get()).toBe("0009000001");
     expect(fake.requests).toHaveLength(0);
     expect(await ensureTickerMap(db, loadConfig({}), NOW)).toBe(false);

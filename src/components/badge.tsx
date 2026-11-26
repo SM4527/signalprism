@@ -17,8 +17,8 @@ export function SignalBadges({ s }: { s: SignalListRow }) {
     <span className="flex flex-wrap gap-1">
       {s.inCluster && <Badge tone="good">Cluster</Badge>}
       {s.newPosition && <Badge tone="good">New position</Badge>}
-      {s.heldVia === "direct" && <Badge tone="info">Held directly</Badge>}
-      {s.heldVia === "funds" && <Badge tone="info">Via funds</Badge>}
+      {s.heldVia === "direct" && <Badge tone="info">Held now: directly</Badge>}
+      {s.heldVia === "funds" && <Badge tone="info">Held now: via funds</Badge>}
       {s.late && <Badge tone="warn">Late</Badge>}
       {s.indirect && <Badge tone="muted">Indirect</Badge>}
       {s.nonCommon && <Badge tone="muted">Non-common</Badge>}
