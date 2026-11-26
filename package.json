@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "e2e": "playwright test",
     "privacy": "bash scripts/privacy-scan.sh",
     "watch:add": "node scripts/watch-add.ts",
     "watch:remove": "node scripts/watch-remove.ts"
