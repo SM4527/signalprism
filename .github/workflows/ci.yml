@@ -18,3 +18,15 @@ jobs:
       - run: npm test
       - run: npm run privacy
       - run: npm run build
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build -f docker/Dockerfile -t signalprism:ci .
+      - name: Run watch-add in the runtime image (mock mode)
+        run: >
+          docker run --rm
+          -e DATA_MODE=mock -e DB_PATH=/tmp/ci.db
+          -v "$PWD/tests/fixtures:/app/tests/fixtures:ro"
+          signalprism:ci node scripts/watch-add.ts ACMR
