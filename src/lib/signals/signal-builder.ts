@@ -27,15 +27,16 @@ export interface Signal {
   lastTxnDate: string;
   lagDays: number;
   late: boolean;
+  /** The 10b5-1 box is ticked: a planned buying program. Shown, never alerted, never in a cluster. */
+  plan10b51: boolean;
   planSuspected: boolean;
   nonCommon: boolean;
   indirect: boolean;
   footnotes: string[];
 }
 
-/** Table I, code P, with shares and a price; none of it under a 10b5-1 plan. */
+/** Table I, code P, with shares and a price. A ticked 10b5-1 box still makes a signal, flagged `plan10b51`. */
 export function purchaseLines(form: ParsedForm4): Line[] {
-  if (form.plan10b51) return [];
   return form.lines.filter(
     (l) => l.table === 1 && l.code === "P" && l.shares !== null && l.price !== null,
   );
@@ -67,6 +68,7 @@ export function buildSignals(form: ParsedForm4, filedAt: string): Signal[] {
     lastTxnDate: dates[dates.length - 1],
     lagDays: lag,
     late: isLate(lag),
+    plan10b51: form.plan10b51,
     planSuspected: form.planSuspected,
     nonCommon: buys.some((l) => isNonCommon(l.securityTitle)),
     indirect: buys.some((l) => l.ownershipForm === "I"),

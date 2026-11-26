@@ -18,12 +18,22 @@ const eastern = new Intl.DateTimeFormat("en-US", {
   hourCycle: "h23",
 });
 
-/** 30 minutes on weekdays 06:00-22:30 Eastern, otherwise 3 hours. */
-export function nextDelayMs(now: Date): number {
-  const p = Object.fromEntries(eastern.formatToParts(now).map((x) => [x.type, x.value]));
+const inWindow = (at: Date) => {
+  const p = Object.fromEntries(eastern.formatToParts(at).map((x) => [x.type, x.value]));
   const minutes = Number(p.hour) * 60 + Number(p.minute);
-  const weekday = p.weekday !== "Sat" && p.weekday !== "Sun";
-  return weekday && minutes >= 6 * 60 && minutes <= 22 * 60 + 30 ? 30 * MINUTE_MS : 180 * MINUTE_MS;
+  return p.weekday !== "Sat" && p.weekday !== "Sun" && minutes >= 6 * 60 && minutes <= 22 * 60 + 30;
+};
+
+/**
+ * 30 minutes on weekdays 06:00-22:30 Eastern, otherwise 3 hours, shortened so a tick never lands
+ * after the next window start (04:30 ET waits 90 minutes, not 3 hours).
+ */
+export function nextDelayMs(now: Date): number {
+  if (inWindow(now)) return 30 * MINUTE_MS;
+  for (let m = 1; m < 180; m++) {
+    if (inWindow(new Date(now.getTime() + m * MINUTE_MS))) return m * MINUTE_MS;
+  }
+  return 180 * MINUTE_MS;
 }
 
 export interface SchedulerDeps {

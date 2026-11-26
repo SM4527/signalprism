@@ -94,6 +94,19 @@ describe("cadence", () => {
     s.stop();
   });
 
+  it("a tick at 04:30 ET schedules 06:00, not 07:30", async () => {
+    vi.setSystemTime(new Date("2026-11-26T09:30:00Z")); // Thursday 04:30 ET
+    const { s, logs, runs } = make();
+    s.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(logs.at(-1)).toBe("next tick 2026-11-26 06:00 ET");
+    await vi.advanceTimersByTimeAsync(89 * MIN);
+    expect(runs()).toBe(1);
+    await vi.advanceTimersByTimeAsync(1 * MIN);
+    expect(runs()).toBe(2);
+    s.stop();
+  });
+
   it("an empty watch list does not end the chain", async () => {
     const { s, runs } = make();
     s.start();

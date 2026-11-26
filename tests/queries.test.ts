@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { openDb } from "@/lib/db";
 import { listWatchlist, companyByTicker } from "@/lib/queries/companies";
 import { ingestFiling } from "@/lib/ingest";
-import { DEFAULT_FILTERS, auditLines, groupJoint, listSignals, parseFilters, signalsForIssuer, type SignalListRow } from "@/lib/queries/signals";
+import { groupAudit } from "@/lib/queries/audit";
+import { DEFAULT_FILTERS, auditLines, groupJoint, listSignals, parseFilters, peopleFirst, signalsForIssuer, type SignalListRow } from "@/lib/queries/signals";
 import { fixtureXml } from "./sec/fixtures";
 import { parseErrors, recentPollRuns } from "@/lib/queries/status";
 import { seedSample } from "@/lib/seed-sample";
@@ -14,7 +15,7 @@ seedDefaults(db);
 seedSample(db, TODAY);
 
 describe("listSignals", () => {
-  const all = { ...DEFAULT_FILTERS, days: 400 };
+  const all = { ...DEFAULT_FILTERS, days: 400, hidePlan: false };
 
   it("hides superseded signals", () => {
     const live = db
@@ -79,9 +80,16 @@ describe("parseFilters", () => {
     expect(parseFilters({ days: "-3", min: "x", role: "KING", sort: "z" })).toEqual(DEFAULT_FILTERS);
   });
   it("reads valid values", () => {
-    expect(parseFilters({ days: "90", min: "4", role: "CFO", held: "1", rule: "1", sort: "score" })).toEqual({
-      days: 90, minScore: 4, role: "CFO", heldOnly: true, matchesRule: true, sort: "score",
+    expect(parseFilters({ days: "90", min: "4", role: "CFO", held: "1", rule: "1", sort: "score", hideplan: ["0", "1"] })).toEqual({
+      days: 90, minScore: 4, role: "CFO", heldOnly: true, matchesRule: true, hidePlan: true, sort: "score",
     });
+  });
+
+  it("hides 10b5-1 plan buys by default, shows them only when the box is unchecked", () => {
+    expect(parseFilters({}).hidePlan).toBe(true);
+    expect(parseFilters({ days: "30" }).hidePlan).toBe(true);
+    expect(parseFilters({ hideplan: "0" }).hidePlan).toBe(false);
+    expect(parseFilters({ hideplan: ["0", "1"] }).hidePlan).toBe(true);
   });
 });
 
@@ -116,6 +124,68 @@ describe("watchlist and status", () => {
   });
 });
 
+describe("10b5-1 plan signals", () => {
+  const all = { ...DEFAULT_FILTERS, days: 400 };
+  it("are listed with the badge flag only when not hidden, and never match the rule", () => {
+    const shown = listSignals(db, { ...all, hidePlan: false }, TODAY);
+    const plans = shown.filter((r) => r.plan10b51);
+    expect(plans.length).toBeGreaterThan(0);
+    expect(plans.every((r) => !r.matchesRule && !r.inCluster)).toBe(true);
+    expect(listSignals(db, all, TODAY).some((r) => r.plan10b51)).toBe(false);
+    expect(listSignals(db, { ...all, hidePlan: false, matchesRule: true }, TODAY).some((r) => r.plan10b51)).toBe(false);
+  });
+});
+
+describe("audit groups", () => {
+  const line = (o: Partial<ReturnType<typeof auditLines>[number]>) => ({
+    ownerName: "Ann", accession: "A-1", filedAt: "2026-11-01", tableNo: 1, code: "S", securityTitle: "Common Stock",
+    txnDate: "2026-10-30", shares: "100", price: "10", plan10b51: false, why: "code S", ...o,
+  });
+
+  it("makes one row per filing and owner with total shares and the weighted average price", () => {
+    const groups = groupAudit([
+      line({ shares: "100", price: "10" }),
+      line({ shares: "300", price: "20", code: "M", why: "code M" }),
+      line({ ownerName: "Bob" }),
+      line({ accession: "A-2" }),
+    ]);
+    expect(groups).toHaveLength(3);
+    expect(groups[0]).toMatchObject({
+      accession: "A-1", ownerName: "Ann", codes: ["S", "M"], totalShares: "400", avgPrice: "17.5", reasons: ["code S", "code M"],
+    });
+    expect(groups[0].lines).toHaveLength(2);
+  });
+
+  it("has no totals for holding rows", () => {
+    const [g] = groupAudit([line({ tableNo: "I-holding", code: "", shares: null, price: null, why: "holding report" })]);
+    expect(g).toMatchObject({ codes: [], totalShares: null, avgPrice: null });
+  });
+
+  it("groups the sample's stored lines by filing", () => {
+    const cik = db.prepare("SELECT cik FROM company c WHERE EXISTS (SELECT 1 FROM transaction_line t JOIN filing f ON f.id = t.filing_id WHERE f.issuer_cik = c.cik AND t.code = 'M')").pluck().get() as string;
+    const lines = auditLines(db, cik);
+    const groups = groupAudit(lines);
+    expect(groups.length).toBeGreaterThan(0);
+    expect(groups.length).toBeLessThanOrEqual(lines.length);
+    expect(groups.flatMap((g) => g.lines)).toHaveLength(lines.length);
+  });
+});
+
+describe("peopleFirst", () => {
+  it("lists individuals before entities and keeps the order within each", () => {
+    expect(
+      peopleFirst(["Zed Capital LP", "Ann Smith", "Oak Holdings", "Bob Jones", "Smith Family Trust", "Acme Inc.", "Cy Fund"]),
+    ).toEqual(["Ann Smith", "Bob Jones", "Zed Capital LP", "Oak Holdings", "Smith Family Trust", "Acme Inc.", "Cy Fund"]);
+    expect(peopleFirst(["Big Partners", "Cole Reed", "Foo Capital, L.P.", "Dee Price"])).toEqual(["Cole Reed", "Dee Price", "Big Partners", "Foo Capital, L.P."]);
+  });
+
+  it("orders a joint row's names that way", () => {
+    const base = listSignals(db, { ...DEFAULT_FILTERS, days: 400 }, TODAY)[0];
+    const m = (id: number, name: string) => ({ ...base, id, filingId: 7, jointGroupId: "joint:x", ownerNames: [name] });
+    expect(groupJoint([m(1, "North Star Capital LP"), m(2, "Dana Whit")])[0].ownerNames).toEqual(["Dana Whit", "North Star Capital LP"]);
+  });
+});
+
 describe("joint filers", () => {
   const base = listSignals(db, { ...DEFAULT_FILTERS, days: 400 }, TODAY)[0];
   const member = (id: number, name: string, role: SignalListRow["role"], score: number): SignalListRow => ({
@@ -126,7 +196,7 @@ describe("joint filers", () => {
   it("groups one filing's joint members into one row with the highest role and score", () => {
     const rows = groupJoint([member(1, "Ann Fund", "HOLDER_10PCT", 2), member(2, "Bob", "CEO", 5), member(3, "Cy", "DIRECTOR", 4)]);
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ ownerNames: ["Ann Fund", "Bob", "Cy"], role: "CEO", score: 5 });
+    expect(rows[0]).toMatchObject({ ownerNames: ["Bob", "Cy", "Ann Fund"], role: "CEO", score: 5 });
     expect(rows[0].parts).toEqual([{ label: "Bob", points: 5 }]);
   });
 

@@ -57,6 +57,11 @@ export default async function SignalsPage({ searchParams }: PageProps<"/">) {
         <label className="flex items-center gap-1">
           <input name="rule" type="checkbox" value="1" defaultChecked={filters.matchesRule} /> Matches default rule
         </label>
+        <label className="flex items-center gap-1">
+          {/* Sent first, so an unchecked box still submits hideplan=0 and the default (on) is not reapplied. */}
+          <input name="hideplan" type="hidden" value="0" />
+          <input name="hideplan" type="checkbox" value="1" defaultChecked={filters.hidePlan} /> Hide 10b5-1 plan buys
+        </label>
         <button type="submit" className="rounded bg-secondary px-3 py-1 text-secondary-foreground">Apply</button>
       </form>
 

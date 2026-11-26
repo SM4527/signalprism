@@ -13,7 +13,7 @@ export interface ClusterCandidate {
   totalValue: string;
 }
 
-/** Roles that can form a cluster. OTHER and HOLDER_10PCT never count. */
+/** Roles that can form a cluster. OTHER and HOLDER_10PCT never count, nor do 10b5-1 plan buys. */
 const ELIGIBLE = new Set(["CEO", "CFO", "COO", "PRESIDENT", "OTHER_OFFICER", "DIRECTOR"]);
 
 /**
@@ -24,7 +24,7 @@ const ELIGIBLE = new Set(["CEO", "CFO", "COO", "PRESIDENT", "OTHER_OFFICER", "DI
 export function detectClusters(rows: SignalRow[]): ClusterCandidate[] {
   const insiderOf = insiderComponents(rows);
   const eligible = rows
-    .filter((r) => isLive(r) && ELIGIBLE.has(r.role))
+    .filter((r) => isLive(r) && ELIGIBLE.has(r.role) && !r.plan_10b51)
     .sort((a, b) => a.txn_date.localeCompare(b.txn_date) || a.id - b.id);
 
   const clusters: ClusterCandidate[] = [];

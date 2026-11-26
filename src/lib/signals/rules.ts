@@ -22,6 +22,8 @@ export interface RuleInput {
   newPosition: boolean;
   late: boolean;
   nonCommon: boolean;
+  /** The 10b5-1 box is ticked. */
+  plan10b51: boolean;
 }
 
 export interface RuleResult {
@@ -31,11 +33,12 @@ export interface RuleResult {
 
 /**
  * The default rule: CEO or CFO, value >= min or increase >= min % (new position counts), not late,
- * common stock. Directors and 10% owners only when switched on. 10b5-1 box trades never become signals.
+ * common stock. Directors and 10% owners only when switched on. A ticked 10b5-1 box never matches.
  */
 export function evaluateRule(s: RuleInput, rule: AlertRule): RuleResult {
   const no = (reason: string): RuleResult => ({ matches: false, reasons: [reason] });
   if (!rule.enabled) return no("rule disabled");
+  if (s.plan10b51) return no("10b5-1 plan");
   if (s.nonCommon) return no("non-common security");
   if (s.late) return no("filed late");
 

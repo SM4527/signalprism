@@ -8,8 +8,12 @@ import { recomputeSupersession } from "./supersede";
 export const RESCORE_MONTHS = 13;
 const FIRST_BUY_MONTHS = 12;
 
-/** True when this person has no other live signal at the issuer in the 12 months before this one. */
+/**
+ * True when this person has no other live signal at the issuer in the 12 months before this one.
+ * A 10b5-1 plan buy never earns the points, though it still counts as an earlier buy for later signals.
+ */
 function isFirstBuy(r: SignalRow, live: SignalRow[]): boolean {
+  if (r.plan_10b51) return false;
   const from = monthsBefore(r.txn_date, FIRST_BUY_MONTHS);
   const me = personKey(r);
   return !live.some((o) => o.id !== r.id && personKey(o) === me && o.txn_date >= from && o.txn_date < r.txn_date);

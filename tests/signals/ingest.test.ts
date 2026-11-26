@@ -24,17 +24,29 @@ describe("ingest", () => {
     expect(db.prepare("SELECT count(DISTINCT code) FROM transaction_line").pluck().get()).toBeGreaterThan(1);
   });
 
-  it("creates no signal for conversions, 10b5-1 box, missing price", () => {
+  it("creates no signal for conversions or a missing price", () => {
     const db = openDb(":memory:");
     for (const [f, i] of [
       ["synthetic_conversion_no_p.xml", "N-1"],
-      ["synthetic_p_10b5_box.xml", "N-2"],
       ["synthetic_no_price.xml", "N-3"],
     ]) {
       ingestFiling(db, input(f, i, "2026-11-10"));
     }
     expect(count(db, "signal")).toBe(0);
-    expect(count(db, "filing")).toBe(3);
+    expect(count(db, "filing")).toBe(2);
+  });
+
+  it("stores a 10b5-1 box purchase as a plan signal with no first-buy points", () => {
+    const db = openDb(":memory:");
+    ingestFiling(db, input("synthetic_p_10b5_box.xml", "N-2", "2026-10-22"));
+    expect(db.prepare("SELECT plan_10b51 FROM signal").pluck().get()).toBe(1);
+    expect(db.prepare("SELECT score_parts_json FROM signal").pluck().get()).not.toContain("first buy");
+
+    const unplanned = openDb(":memory:");
+    const open = input("synthetic_p_10b5_box.xml", "N-2", "2026-10-22");
+    ingestFiling(unplanned, { ...open, xml: open.xml.replace("<aff10b5One>1</aff10b5One>", "<aff10b5One>0</aff10b5One>") });
+    expect(unplanned.prepare("SELECT plan_10b51 FROM signal").pluck().get()).toBe(0);
+    expect(unplanned.prepare("SELECT score_parts_json FROM signal").pluck().get()).toContain("first buy");
   });
 
   it("records a parse error on the filing and keeps going", () => {

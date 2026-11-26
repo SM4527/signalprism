@@ -5,7 +5,7 @@ import type { SignalRow } from "@/lib/signals/issuer-rows";
 let n = 0;
 const row = (o: Partial<SignalRow>): SignalRow => ({
   id: ++n, filing_id: n, issuer_cik: "1", txn_date: "2026-01-01", value: "1000", pct_increase: null,
-  new_position: 0, late: 0, plan_suspected: 0, held_via: null, superseded_by: null, superseded_by_filing: null, role: "CEO",
+  new_position: 0, late: 0, plan_suspected: 0, plan_10b51: 0, held_via: null, superseded_by: null, superseded_by_filing: null, role: "CEO",
   owner_cik: `c${n}`, owner_name: `Person ${n}`, joint_group_id: null, form_type: "4",
   filed_at: "2026-01-02", period_of_report: "2026-01-01", ...o,
 });
@@ -15,6 +15,13 @@ describe("detectClusters", () => {
     expect(detectClusters([row({}), row({ txn_date: "2026-01-10", role: "CFO" })])).toHaveLength(1);
     expect(detectClusters([row({}), row({ txn_date: "2026-01-10", owner_cik: "c-same", role: "CFO" })])).toHaveLength(1);
     expect(detectClusters([row({ role: "DIRECTOR" }), row({ role: "DIRECTOR" })])).toHaveLength(0);
+  });
+
+  it("10b5-1 plan buys never form or join a cluster", () => {
+    expect(detectClusters([row({}), row({ txn_date: "2026-01-10", role: "CFO", plan_10b51: 1 })])).toHaveLength(0);
+    const c = detectClusters([row({}), row({ txn_date: "2026-01-10", role: "CFO" }), row({ txn_date: "2026-01-11", role: "COO", plan_10b51: 1 })]);
+    expect(c[0].insiderCount).toBe(2);
+    expect(c[0].members).toHaveLength(2);
   });
 
   it("counts the same person once, by cik then by name", () => {

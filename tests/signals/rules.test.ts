@@ -6,7 +6,7 @@ const rule: AlertRule = {
   id: 1, name: "Default", roles: ["CEO", "CFO"], minValue: "100000", minPct: "10",
   directorMinValue: "250000", includeDirectors: false, includeTenPct: false, pushOnCluster: true, enabled: true,
 };
-const sig: RuleInput = { role: "CEO", value: "50000", pctIncrease: "5", newPosition: false, late: false, nonCommon: false };
+const sig: RuleInput = { role: "CEO", value: "50000", pctIncrease: "5", newPosition: false, late: false, nonCommon: false, plan10b51: false };
 const hit = (s: Partial<RuleInput>, r: Partial<AlertRule> = {}) => evaluateRule({ ...sig, ...s }, { ...rule, ...r }).matches;
 
 describe("default rule", () => {
@@ -51,6 +51,11 @@ describe("default rule", () => {
 
   it("10% owners only when on", () => {
     expect(hit({ role: "HOLDER_10PCT", value: "200000" }, { includeTenPct: true })).toBe(true);
+  });
+
+  it("a ticked 10b5-1 box never matches, however large", () => {
+    expect(hit({ value: "99999999", plan10b51: true })).toBe(false);
+    expect(hit({ pctIncrease: null, newPosition: true, plan10b51: true })).toBe(false);
   });
 
   it("a disabled rule never matches", () => {

@@ -39,3 +39,24 @@ test("a ticker link opens the ticker page with audit lines", async ({ page }) =>
 test("unknown ticker is a 404", async ({ page }) => {
   expect((await page.goto("/ticker/NOPE"))?.status()).toBe(404);
 });
+
+test("10b5-1 plan buys are hidden by default and shown when the box is unchecked", async ({ page }) => {
+  const badge = page.getByText("10b5-1 plan", { exact: true });
+  await page.goto("/?days=365");
+  await expect(page.getByLabel("Hide 10b5-1 plan buys")).toBeChecked();
+  await expect(badge).toHaveCount(0);
+
+  await page.getByLabel("Hide 10b5-1 plan buys").uncheck();
+  await page.getByRole("button", { name: "Apply" }).click();
+  await expect(page.getByLabel("Hide 10b5-1 plan buys")).not.toBeChecked();
+  await expect(badge.first()).toBeVisible();
+});
+
+test("ticker audit lines are grouped per filing and expand without scripts", async ({ page }) => {
+  await page.goto("/ticker/EVMD");
+  const group = page.getByTestId("audit-group").first();
+  await expect(group).toBeVisible();
+  await expect(group.getByTestId("audit-line").first()).toBeHidden();
+  await group.locator("summary").click();
+  await expect(group.getByTestId("audit-line").first()).toBeVisible();
+});

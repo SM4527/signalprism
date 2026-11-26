@@ -15,11 +15,13 @@ export interface SignalFilters {
   role: Role | null;
   heldOnly: boolean;
   matchesRule: boolean;
+  /** Hide signals whose Form 4 has the 10b5-1 box ticked. On by default. */
+  hidePlan: boolean;
   sort: "filed" | "score";
 }
 
 export const DEFAULT_FILTERS: SignalFilters = {
-  days: DEFAULT_DAYS, minScore: 0, role: null, heldOnly: false, matchesRule: false, sort: "filed",
+  days: DEFAULT_DAYS, minScore: 0, role: null, heldOnly: false, matchesRule: false, hidePlan: true, sort: "filed",
 };
 
 export interface SignalListRow {
@@ -48,6 +50,7 @@ export interface SignalListRow {
   indirect: boolean;
   nonCommon: boolean;
   planSuspected: boolean;
+  plan10b51: boolean;
   heldVia: "direct" | "funds" | null;
   inCluster: boolean;
   footnotes: string[];
@@ -58,7 +61,7 @@ const SELECT = `
   SELECT s.id, c.ticker, c.name AS issuer_name, s.issuer_cik, s.filing_id, o.joint_group_id, o.owner_name, o.role,
          o.officer_title_raw AS title_raw,
          s.shares, s.value, s.avg_price, s.pct_increase, s.new_position, s.txn_date, f.filed_at, f.form_type,
-         f.accession_no, s.score, s.score_parts_json, s.late, s.indirect, s.non_common, s.plan_suspected,
+         f.accession_no, s.score, s.score_parts_json, s.late, s.indirect, s.non_common, s.plan_suspected, s.plan_10b51,
          s.held_via, s.footnotes_json,
          EXISTS (SELECT 1 FROM cluster_member m WHERE m.signal_id = s.id) AS in_cluster
   FROM signal s
@@ -93,6 +96,7 @@ function toRow(r: Record<string, string | number | null>, matches: boolean): Sig
     indirect: !!r.indirect,
     nonCommon: !!r.non_common,
     planSuspected: !!r.plan_suspected,
+    plan10b51: !!r.plan_10b51,
     heldVia: r.held_via as SignalListRow["heldVia"],
     inCluster: !!r.in_cluster,
     footnotes: r.footnotes_json ? (JSON.parse(r.footnotes_json as string) as string[]) : [],
@@ -115,6 +119,7 @@ function load(db: Database.Database, where: string, params: unknown[], order: st
             newPosition: !!r.new_position,
             late: !!r.late,
             nonCommon: !!r.non_common,
+            plan10b51: !!r.plan_10b51,
           },
           rule,
         ).matches,
@@ -123,6 +128,14 @@ function load(db: Database.Database, where: string, params: unknown[], order: st
 }
 
 const NEWEST_FIRST = "ORDER BY f.filed_at DESC, f.accession_no DESC, s.id DESC";
+
+const ENTITY = /\b(llc|l\.l\.c|lp|l\.p|inc|trust|fund|partners|capital|holdings)\.?$/i;
+
+/** Individuals first, then entities (LLC, LP, Inc, Trust, Fund, Partners, Capital, Holdings); order kept within each. */
+export function peopleFirst(names: string[]): string[] {
+  const entity = (n: string) => ENTITY.test(n.trim());
+  return [...names.filter((n) => !entity(n)), ...names.filter(entity)];
+}
 
 /**
  * One row per filing and joint group: all owner names, the highest role, and the highest member score
@@ -142,7 +155,7 @@ export function groupJoint(rows: SignalListRow[]): SignalListRow[] {
       ...best,
       role: top.role,
       titleRaw: top.titleRaw,
-      ownerNames: [...new Set(members.flatMap((m) => m.ownerNames))],
+      ownerNames: peopleFirst([...new Set(members.flatMap((m) => m.ownerNames))]),
       inCluster: members.some((m) => m.inCluster),
       matchesRule: members.some((m) => m.matchesRule),
     };
@@ -158,7 +171,8 @@ export function listSignals(db: Database.Database, f: SignalFilters, today: stri
     .filter((r) => r.score >= f.minScore)
     .filter((r) => !f.role || r.role === f.role)
     .filter((r) => !f.heldOnly || r.heldVia !== null)
-    .filter((r) => !f.matchesRule || r.matchesRule);
+    .filter((r) => !f.matchesRule || r.matchesRule)
+    .filter((r) => !f.hidePlan || !r.plan10b51);
   if (f.sort === "score") rows.sort((a, b) => b.score - a.score);
   return rows.slice(0, MAX_ROWS);
 }
@@ -182,14 +196,14 @@ export interface AuditLine {
   why: string;
 }
 
-const AUDIT_LIMIT = 300;
+/** A safety cap; the backfill is 13 months, so a company stays far below it. */
+const AUDIT_LIMIT = 5000;
 
 /** Why a line is not a purchase signal, mirroring `purchaseLines`. */
-function whyNot(r: { table_no: number | string; code: string | null; shares: string | null; price: string | null; plan_10b51: number; owned_after: string | null }) {
+function whyNot(r: { table_no: number | string; code: string | null; shares: string | null; price: string | null; owned_after: string | null }) {
   if (r.table_no === HOLDING_TABLE) return `holding report${r.owned_after ? `, ${r.owned_after} owned` : ""}`;
   if (r.table_no !== 1) return "derivative table";
   if (r.code !== "P") return `code ${r.code ?? "?"}`;
-  if (r.plan_10b51) return "10b5-1 plan";
   return r.price === null ? "no price" : "no shares";
 }
 
@@ -203,7 +217,7 @@ export function auditLines(db: Database.Database, issuerCik: string): AuditLine[
        JOIN filing f ON f.id = t.filing_id
        JOIN reporting_owner o ON o.id = t.owner_id
        WHERE f.issuer_cik = ?
-         AND NOT (t.table_no = 1 AND t.code = 'P' AND t.shares IS NOT NULL AND t.price IS NOT NULL AND t.plan_10b51 = 0)
+         AND NOT (t.table_no = 1 AND t.code = 'P' AND t.shares IS NOT NULL AND t.price IS NOT NULL)
        ORDER BY f.filed_at DESC, f.accession_no DESC, t.seq
        LIMIT ${AUDIT_LIMIT}`,
     )
@@ -226,6 +240,8 @@ export function auditLines(db: Database.Database, issuerCik: string): AuditLine[
 /** Parse query-string filters; anything unrecognized falls back to the default. */
 export function parseFilters(q: Record<string, string | string[] | undefined>): SignalFilters {
   const one = (k: string) => (Array.isArray(q[k]) ? q[k][0] : q[k]);
+  const all = (k: string) => (Array.isArray(q[k]) ? q[k] : q[k] === undefined ? [] : [q[k]]);
+  const hide = all("hideplan");
   const days = Number(one("days"));
   const minScore = Number(one("min"));
   const role = one("role");
@@ -235,6 +251,8 @@ export function parseFilters(q: Record<string, string | string[] | undefined>): 
     role: (ROLES as readonly string[]).includes(role ?? "") ? (role as Role) : null,
     heldOnly: one("held") === "1",
     matchesRule: one("rule") === "1",
+    // The form sends hideplan=0 when unchecked and 0 then 1 when checked; no parameter at all means the default, on.
+    hidePlan: hide.length === 0 || hide.includes("1"),
     sort: one("sort") === "score" ? "score" : "filed",
   };
 }
