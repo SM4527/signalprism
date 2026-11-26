@@ -45,6 +45,17 @@ export function parseErrors(db: Database.Database, limit = 50): ParseErrorRow[] 
   return rows.map((r) => ({ accession: r.accession_no, issuerCik: r.issuer_cik, filedAt: r.filed_at, error: r.parse_error }));
 }
 
+/** Filings that were stored but had something unreadable that did not matter (for example in Table II). */
+export function parseWarnings(db: Database.Database, limit = 50): ParseErrorRow[] {
+  const rows = db
+    .prepare(
+      `SELECT accession_no, issuer_cik, filed_at, parse_warning FROM filing
+       WHERE parse_warning IS NOT NULL ORDER BY filed_at DESC, id DESC LIMIT ?`,
+    )
+    .all(limit) as { accession_no: string; issuer_cik: string; filed_at: string; parse_warning: string }[];
+  return rows.map((r) => ({ accession: r.accession_no, issuerCik: r.issuer_cik, filedAt: r.filed_at, error: r.parse_warning }));
+}
+
 /** Accessions with at least one failed XML fetch that are not yet given up on. */
 export const pendingFetchFailures = (db: Database.Database): number =>
   db

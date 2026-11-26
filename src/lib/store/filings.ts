@@ -41,10 +41,14 @@ export function saveFiling(
   const filingId = toId(
     db
       .prepare(
-        `INSERT INTO filing (accession_no, form_type, issuer_cik, ticker, filed_at, period_of_report, original_submission_date)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO filing (accession_no, form_type, issuer_cik, ticker, filed_at, period_of_report,
+                             original_submission_date, parse_warning)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(accession, form.formType, form.issuerCik, ticker, filedAt, form.periodOfReport, form.originalSubmissionDate)
+      .run(
+        accession, form.formType, form.issuerCik, ticker, filedAt, form.periodOfReport,
+        form.originalSubmissionDate, form.warnings.join("; ") || null,
+      )
       .lastInsertRowid,
   );
 

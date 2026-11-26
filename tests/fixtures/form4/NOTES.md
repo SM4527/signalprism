@@ -38,3 +38,6 @@ Real public filings, one line per file, then synthetic files (`synthetic_*.xml`:
 - `synthetic_cluster_director.xml` - ACME director P on 2026-11-16; joins the ACME CEO and CFO buys as a third insider in one cluster.
 - `synthetic_amendment_original.xml` - the Form 4 that `synthetic_amendment_4a.xml` amends (300 shares, 4/A has 400).
 - `synthetic_late_ceo.xml` - CEO P of $160K; filed with a manifest lag of more than two business days.
+- `synthetic_holdings_elsewhere.xml` - director P of 2,500 in an indirect bucket (9,000 after) with `nonDerivativeHolding` rows: 24,032 direct, the same indirect bucket again (not double counted) and a different security (ignored).
+- `synthetic_new_entity_holdings.xml` - CFO P of 1,000 through a new entity (1,000 after) while 5,000 are held directly: not a new position.
+- `synthetic_table2_no_coding.xml` - CEO P in Table I plus a `derivativeTransaction` without `transactionCoding`; the filing must parse with a warning.

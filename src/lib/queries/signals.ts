@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { HOLDING_TABLE } from "@/lib/sec/form4-types";
 import { ROLES, type Role } from "@/lib/sec/roles";
 import { addDays } from "@/lib/signals/dates";
 import { evaluateRule, loadRules } from "@/lib/signals/rules";
@@ -26,7 +27,10 @@ export interface SignalListRow {
   ticker: string | null;
   issuerName: string | null;
   issuerCik: string;
-  ownerName: string;
+  filingId: number;
+  jointGroupId: string | null;
+  /** More than one name when joint filers are grouped into one row. */
+  ownerNames: string[];
   role: Role;
   titleRaw: string | null;
   shares: string;
@@ -51,7 +55,8 @@ export interface SignalListRow {
 }
 
 const SELECT = `
-  SELECT s.id, c.ticker, c.name AS issuer_name, s.issuer_cik, o.owner_name, o.role, o.officer_title_raw AS title_raw,
+  SELECT s.id, c.ticker, c.name AS issuer_name, s.issuer_cik, s.filing_id, o.joint_group_id, o.owner_name, o.role,
+         o.officer_title_raw AS title_raw,
          s.shares, s.value, s.avg_price, s.pct_increase, s.new_position, s.txn_date, f.filed_at, f.form_type,
          f.accession_no, s.score, s.score_parts_json, s.late, s.indirect, s.non_common, s.plan_suspected,
          s.held_via, s.footnotes_json,
@@ -68,7 +73,9 @@ function toRow(r: Record<string, string | number | null>, matches: boolean): Sig
     ticker: r.ticker as string | null,
     issuerName: r.issuer_name as string | null,
     issuerCik: r.issuer_cik as string,
-    ownerName: r.owner_name as string,
+    filingId: r.filing_id as number,
+    jointGroupId: r.joint_group_id as string | null,
+    ownerNames: [r.owner_name as string],
     role: r.role as Role,
     titleRaw: r.title_raw as string | null,
     shares: r.shares as string,
@@ -115,33 +122,57 @@ function load(db: Database.Database, where: string, params: unknown[], order: st
   );
 }
 
-/** Live signals filed in the window, filtered, newest filed first (or highest score), at most 200 rows. */
-export function listSignals(db: Database.Database, f: SignalFilters, today: string): SignalListRow[] {
-  const where = ["AND f.filed_at >= ?", "AND s.score >= ?"];
-  const params: unknown[] = [addDays(today, -f.days), f.minScore];
-  if (f.role) {
-    where.push("AND o.role = ?");
-    params.push(f.role);
+const NEWEST_FIRST = "ORDER BY f.filed_at DESC, f.accession_no DESC, s.id DESC";
+
+/**
+ * One row per filing and joint group: all owner names, the highest role, and the highest member score
+ * (with its breakdown). Rows without a joint group pass through unchanged.
+ */
+export function groupJoint(rows: SignalListRow[]): SignalListRow[] {
+  const groups = new Map<string, SignalListRow[]>();
+  for (const r of rows) {
+    const key = r.jointGroupId ? `${r.filingId}|${r.jointGroupId}` : `signal|${r.id}`;
+    groups.set(key, [...(groups.get(key) ?? []), r]);
   }
-  if (f.heldOnly) where.push("AND s.held_via IS NOT NULL");
-  const order =
-    f.sort === "score"
-      ? "ORDER BY s.score DESC, f.filed_at DESC, s.id DESC"
-      : "ORDER BY f.filed_at DESC, f.accession_no DESC, s.id DESC";
-  const rows = load(db, where.join(" "), params, order);
-  return (f.matchesRule ? rows.filter((r) => r.matchesRule) : rows).slice(0, MAX_ROWS);
+  return [...groups.values()].map((members) => {
+    if (members.length === 1) return members[0];
+    const top = members.reduce((a, b) => (ROLES.indexOf(b.role) < ROLES.indexOf(a.role) ? b : a));
+    const best = members.reduce((a, b) => (b.score > a.score ? b : a));
+    return {
+      ...best,
+      role: top.role,
+      titleRaw: top.titleRaw,
+      ownerNames: [...new Set(members.flatMap((m) => m.ownerNames))],
+      inCluster: members.some((m) => m.inCluster),
+      matchesRule: members.some((m) => m.matchesRule),
+    };
+  });
 }
 
-/** Every live signal of one company, newest filed first. */
+/**
+ * Live signals filed in the window, joint filers grouped, then filtered; newest filed first (or highest
+ * score), at most 200 rows. Filters apply to the grouped row (its highest role and score).
+ */
+export function listSignals(db: Database.Database, f: SignalFilters, today: string): SignalListRow[] {
+  const rows = groupJoint(load(db, "AND f.filed_at >= ?", [addDays(today, -f.days)], NEWEST_FIRST))
+    .filter((r) => r.score >= f.minScore)
+    .filter((r) => !f.role || r.role === f.role)
+    .filter((r) => !f.heldOnly || r.heldVia !== null)
+    .filter((r) => !f.matchesRule || r.matchesRule);
+  if (f.sort === "score") rows.sort((a, b) => b.score - a.score);
+  return rows.slice(0, MAX_ROWS);
+}
+
+/** Every live signal of one company, joint filers grouped, newest filed first. */
 export function signalsForIssuer(db: Database.Database, issuerCik: string): SignalListRow[] {
-  return load(db, "AND s.issuer_cik = ?", [issuerCik], "ORDER BY f.filed_at DESC, f.accession_no DESC, s.id DESC");
+  return groupJoint(load(db, "AND s.issuer_cik = ?", [issuerCik], NEWEST_FIRST));
 }
 
 export interface AuditLine {
   ownerName: string;
   accession: string;
   filedAt: string;
-  tableNo: number;
+  tableNo: number | string;
   code: string | null;
   securityTitle: string | null;
   txnDate: string | null;
@@ -154,7 +185,8 @@ export interface AuditLine {
 const AUDIT_LIMIT = 300;
 
 /** Why a line is not a purchase signal, mirroring `purchaseLines`. */
-function whyNot(r: { table_no: number; code: string | null; shares: string | null; price: string | null; plan_10b51: number }) {
+function whyNot(r: { table_no: number | string; code: string | null; shares: string | null; price: string | null; plan_10b51: number; owned_after: string | null }) {
+  if (r.table_no === HOLDING_TABLE) return `holding report${r.owned_after ? `, ${r.owned_after} owned` : ""}`;
   if (r.table_no !== 1) return "derivative table";
   if (r.code !== "P") return `code ${r.code ?? "?"}`;
   if (r.plan_10b51) return "10b5-1 plan";
@@ -166,7 +198,7 @@ export function auditLines(db: Database.Database, issuerCik: string): AuditLine[
   const rows = db
     .prepare(
       `SELECT o.owner_name, f.accession_no, f.filed_at, t.table_no, t.code, t.security_title, t.txn_date,
-              t.shares, t.price, t.plan_10b51
+              t.shares, t.price, t.plan_10b51, t.owned_after
        FROM transaction_line t
        JOIN filing f ON f.id = t.filing_id
        JOIN reporting_owner o ON o.id = t.owner_id
@@ -175,7 +207,7 @@ export function auditLines(db: Database.Database, issuerCik: string): AuditLine[
        ORDER BY f.filed_at DESC, f.accession_no DESC, t.seq
        LIMIT ${AUDIT_LIMIT}`,
     )
-    .all(issuerCik) as { owner_name: string; accession_no: string; filed_at: string; table_no: number; code: string | null; security_title: string | null; txn_date: string | null; shares: string | null; price: string | null; plan_10b51: number }[];
+    .all(issuerCik) as { owner_name: string; accession_no: string; filed_at: string; table_no: number | string; code: string | null; security_title: string | null; txn_date: string | null; shares: string | null; price: string | null; plan_10b51: number; owned_after: string | null }[];
   return rows.map((r) => ({
     ownerName: r.owner_name,
     accession: r.accession_no,

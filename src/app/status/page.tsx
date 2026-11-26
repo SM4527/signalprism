@@ -2,7 +2,7 @@ import { loadConfig } from "@/lib/config";
 import { getDb } from "@/lib/db";
 import { formatEt } from "@/lib/format";
 import { getPollStatus } from "@/lib/poll/poll-all";
-import { parseErrors, pendingFetchFailures, recentPollRuns } from "@/lib/queries/status";
+import { parseErrors, parseWarnings, pendingFetchFailures, recentPollRuns } from "@/lib/queries/status";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +21,7 @@ export default function StatusPage() {
   const { lastRun, pausedUntil } = getPollStatus(db, new Date());
   const runs = recentPollRuns(db);
   const errors = parseErrors(db);
+  const warnings = parseWarnings(db);
 
   return (
     <div className="space-y-6">
@@ -79,6 +80,19 @@ export default function StatusPage() {
           ))}
         </ul>
       </section>
+
+      {warnings.length > 0 && (
+        <section>
+          <h2 className="mb-1 font-semibold">Parse warnings ({warnings.length})</h2>
+          <ul className="space-y-1 text-sm" data-testid="parse-warnings">
+            {warnings.map((e) => (
+              <li key={e.accession} className="font-mono">
+                {e.filedAt} {e.accession} <span className="text-muted-foreground">{e.error}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section>
         <h2 className="mb-1 font-semibold">Integrations</h2>

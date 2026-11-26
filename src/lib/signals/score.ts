@@ -42,7 +42,7 @@ export function scoreSignal(s: ScoreInput): Score {
   if (s.newPosition) add("new position", SCORE.newPosition);
   else {
     const pct = SCORE.pctTiers.find((t) => s.pctIncrease !== null && new Decimal(s.pctIncrease).gte(t.min));
-    if (pct) add(`+${s.pctIncrease}% holdings`, pct.points);
+    if (pct) add(`+${new Decimal(s.pctIncrease!).toDecimalPlaces(1)}% holdings`, pct.points);
   }
   if (s.firstBuy) add("first buy in 12 months", SCORE.firstBuy);
   if (s.inCluster) add("cluster", SCORE.cluster);

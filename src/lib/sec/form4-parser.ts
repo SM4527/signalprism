@@ -1,10 +1,11 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
-import type { Line, Owner, ParseResult } from "./form4-types";
-import { form4Schema, type RawTx } from "./form4-schema";
+import { HOLDING_TABLE, type Line, type Owner, type ParseResult } from "./form4-types";
+import { derivativeTx, form4Schema, type RawHolding, type RawTx } from "./form4-schema";
 import { normalizeRole } from "./roles";
 
 const ARRAY_TAGS = new Set([
-  "reportingOwner", "nonDerivativeTransaction", "derivativeTransaction", "footnote", "footnoteId",
+  "reportingOwner", "nonDerivativeTransaction", "nonDerivativeHolding", "derivativeTransaction",
+  "footnote", "footnoteId",
 ]);
 
 const xml = new XMLParser({
@@ -31,12 +32,50 @@ function footnoteIds(node: unknown): string[] {
   );
 }
 
+function toHoldingLine(h: RawHolding, seq: number, notes: Map<string, string>): Line {
+  return {
+    table: HOLDING_TABLE,
+    seq,
+    securityTitle: val(h.securityTitle) ?? "",
+    code: "",
+    txnDate: "",
+    shares: null,
+    price: null,
+    acquiredDisposed: null,
+    ownedAfter: val(h.postTransactionAmounts?.sharesOwnedFollowingTransaction),
+    ownershipForm: val(h.ownershipNature?.directOrIndirectOwnership),
+    nature: val(h.ownershipNature?.natureOfOwnership) ?? "",
+    footnotes: footnoteIds(h).flatMap((id) => notes.get(id) ?? []),
+  };
+}
+
+/** Table II lines. Whatever is wrong with them becomes a warning; they never block Table I. */
+function derivativeLines(table: unknown, notes: Map<string, string>, warnings: string[]): Line[] {
+  const items = typeof table === "object" && table !== null ? (table as { derivativeTransaction?: unknown }).derivativeTransaction : undefined;
+  if (items === undefined) return [];
+  if (!Array.isArray(items)) {
+    warnings.push("table II: unreadable derivative table");
+    return [];
+  }
+  return items.flatMap((item, i) => {
+    const t = derivativeTx.safeParse(item);
+    if (!t.success) {
+      warnings.push(`table II: unreadable derivative transaction ${i + 1}`);
+      return [];
+    }
+    if (!t.data.transactionCoding?.transactionCode) {
+      warnings.push(`table II: derivative transaction ${i + 1} has no transaction code`);
+    }
+    return [toLine(t.data, 2, i, notes)];
+  });
+}
+
 function toLine(t: RawTx, table: 1 | 2, seq: number, notes: Map<string, string>): Line {
   return {
     table,
     seq,
     securityTitle: val(t.securityTitle) ?? "",
-    code: t.transactionCoding.transactionCode,
+    code: t.transactionCoding?.transactionCode ?? "",
     txnDate: (val(t.transactionDate) ?? "").slice(0, 10),
     shares: val(t.transactionAmounts?.transactionShares),
     price: val(t.transactionAmounts?.transactionPricePerShare),
@@ -60,13 +99,12 @@ export function parseForm4(source: string): ParseResult {
   const notes = new Map<string, string>();
   if (doc.footnotes) for (const f of doc.footnotes.footnote) notes.set(f["@_id"], f["#text"] ?? "");
 
+  const warnings: string[] = [];
+  const table1 = doc.nonDerivativeTable === "" ? undefined : doc.nonDerivativeTable;
   const lines = [
-    ...(doc.nonDerivativeTable === "" ? [] : doc.nonDerivativeTable?.nonDerivativeTransaction ?? []).map(
-      (t, i) => toLine(t, 1, i, notes),
-    ),
-    ...(doc.derivativeTable === "" ? [] : doc.derivativeTable?.derivativeTransaction ?? []).map(
-      (t, i) => toLine(t, 2, i, notes),
-    ),
+    ...(table1?.nonDerivativeTransaction ?? []).map((t, i) => toLine(t, 1, i, notes)),
+    ...(table1?.nonDerivativeHolding ?? []).map((h, i) => toHoldingLine(h, i, notes)),
+    ...derivativeLines(doc.derivativeTable, notes, warnings),
   ];
 
   const joint = doc.reportingOwner.length > 1;
@@ -108,6 +146,7 @@ export function parseForm4(source: string): ParseResult {
       planSuspected: !plan10b51 && mentions10b5,
       owners,
       lines,
+      warnings,
     },
   };
 }

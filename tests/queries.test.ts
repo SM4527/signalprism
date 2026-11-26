@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { openDb } from "@/lib/db";
 import { listWatchlist, companyByTicker } from "@/lib/queries/companies";
-import { DEFAULT_FILTERS, auditLines, listSignals, parseFilters, signalsForIssuer } from "@/lib/queries/signals";
+import { ingestFiling } from "@/lib/ingest";
+import { DEFAULT_FILTERS, auditLines, groupJoint, listSignals, parseFilters, signalsForIssuer, type SignalListRow } from "@/lib/queries/signals";
+import { fixtureXml } from "./sec/fixtures";
 import { parseErrors, recentPollRuns } from "@/lib/queries/status";
 import { seedSample } from "@/lib/seed-sample";
 import { seedDefaults } from "@/lib/signals/rules";
@@ -15,7 +17,13 @@ describe("listSignals", () => {
   const all = { ...DEFAULT_FILTERS, days: 400 };
 
   it("hides superseded signals", () => {
-    const live = db.prepare("SELECT count(*) FROM signal WHERE superseded_by_filing_id IS NULL").pluck().get();
+    const live = db
+      .prepare(
+        `SELECT count(DISTINCT CASE WHEN o.joint_group_id IS NULL THEN 's' || s.id ELSE s.filing_id || o.joint_group_id END)
+         FROM signal s JOIN reporting_owner o ON o.id = s.owner_id WHERE s.superseded_by_filing_id IS NULL`,
+      )
+      .pluck()
+      .get();
     expect(listSignals(db, all, TODAY)).toHaveLength(live as number);
   });
 
@@ -105,5 +113,38 @@ describe("watchlist and status", () => {
   it("reports parse errors and no poll runs on the sample", () => {
     expect(parseErrors(db)).toHaveLength(2);
     expect(recentPollRuns(db)).toEqual([]);
+  });
+});
+
+describe("joint filers", () => {
+  const base = listSignals(db, { ...DEFAULT_FILTERS, days: 400 }, TODAY)[0];
+  const member = (id: number, name: string, role: SignalListRow["role"], score: number): SignalListRow => ({
+    ...base, id, filingId: 99, jointGroupId: "joint:a+b", ownerNames: [name], role, score,
+    parts: [{ label: name, points: score }], inCluster: false, matchesRule: false,
+  });
+
+  it("groups one filing's joint members into one row with the highest role and score", () => {
+    const rows = groupJoint([member(1, "Ann Fund", "HOLDER_10PCT", 2), member(2, "Bob", "CEO", 5), member(3, "Cy", "DIRECTOR", 4)]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ ownerNames: ["Ann Fund", "Bob", "Cy"], role: "CEO", score: 5 });
+    expect(rows[0].parts).toEqual([{ label: "Bob", points: 5 }]);
+  });
+
+  it("does not merge the same group across filings, or rows without a group", () => {
+    const other = { ...member(4, "Ann Fund", "HOLDER_10PCT", 2), filingId: 100 };
+    const solo = { ...member(5, "Dee", "CFO", 3), jointGroupId: null };
+    expect(groupJoint([member(1, "Ann Fund", "HOLDER_10PCT", 2), other, solo])).toHaveLength(3);
+  });
+
+  it("lists the sample's joint filing once with both names", () => {
+    const joint = openDb(":memory:");
+    seedDefaults(joint);
+    ingestFiling(joint, { accession: "J-1", issuerCik: "0000000000", filedAt: "2026-11-20", xml: fixtureXml("synthetic_joint_filers.xml") });
+    const owners = joint.prepare("SELECT count(*) FROM signal").pluck().get() as number;
+    const rows = listSignals(joint, { ...DEFAULT_FILTERS, days: 400 }, TODAY);
+    expect(owners).toBe(2);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].ownerNames).toHaveLength(2);
+    expect(signalsForIssuer(joint, rows[0].issuerCik)).toHaveLength(1);
   });
 });

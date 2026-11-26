@@ -20,6 +20,34 @@ const tx = z.looseObject({
     .optional(),
 });
 
+/** A `nonDerivativeHolding` row: what is owned, with no transaction. */
+const holding = z.looseObject({
+  securityTitle: valueNode,
+  postTransactionAmounts: z.looseObject({ sharesOwnedFollowingTransaction: valueNode }).optional(),
+  ownershipNature: z
+    .looseObject({ directOrIndirectOwnership: valueNode, natureOfOwnership: valueNode })
+    .optional(),
+});
+
+/** Table II must never block Table I: every field is optional and a bad field is dropped. */
+const soft = <T extends z.ZodType>(s: T) => s.optional().catch(undefined);
+export const derivativeTx = z.looseObject({
+  securityTitle: soft(valueNode),
+  transactionDate: soft(valueNode),
+  transactionCoding: soft(z.looseObject({ transactionCode: soft(z.string()) })),
+  transactionAmounts: soft(
+    z.looseObject({
+      transactionShares: soft(valueNode),
+      transactionPricePerShare: soft(valueNode),
+      transactionAcquiredDisposedCode: soft(valueNode),
+    }),
+  ),
+  postTransactionAmounts: soft(z.looseObject({ sharesOwnedFollowingTransaction: soft(valueNode) })),
+  ownershipNature: soft(
+    z.looseObject({ directOrIndirectOwnership: soft(valueNode), natureOfOwnership: soft(valueNode) }),
+  ),
+});
+
 const owner = z.looseObject({
   reportingOwnerId: z.looseObject({
     rptOwnerCik: z.string().optional(),
@@ -35,8 +63,15 @@ const owner = z.looseObject({
     .optional(),
 });
 
-const table = (name: string) =>
-  z.union([z.literal(""), z.looseObject({ [name]: z.array(tx).optional() })]).optional();
+const nonDerivativeTable = z
+  .union([
+    z.literal(""),
+    z.looseObject({
+      nonDerivativeTransaction: z.array(tx).optional(),
+      nonDerivativeHolding: z.array(holding).optional(),
+    }),
+  ])
+  .optional();
 
 export const form4Schema = z.looseObject({
   ownershipDocument: z.looseObject({
@@ -50,8 +85,8 @@ export const form4Schema = z.looseObject({
     }),
     reportingOwner: z.array(owner).min(1),
     aff10b5One: z.string().optional(),
-    nonDerivativeTable: table("nonDerivativeTransaction"),
-    derivativeTable: table("derivativeTransaction"),
+    nonDerivativeTable,
+    derivativeTable: z.unknown().optional(),
     footnotes: z
       .union([
         z.literal(""),
@@ -63,5 +98,6 @@ export const form4Schema = z.looseObject({
   }),
 });
 
-export type RawTx = z.infer<typeof tx>;
+export type RawTx = z.infer<typeof derivativeTx>;
+export type RawHolding = z.infer<typeof holding>;
 export type RawForm4 = z.infer<typeof form4Schema>["ownershipDocument"];

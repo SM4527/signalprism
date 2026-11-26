@@ -1,8 +1,11 @@
 import type { Role } from "./roles";
 
-/** One transaction line. Shares, prices and holdings are decimal strings, never numbers. */
+/** Table value of a `nonDerivativeHolding` row: holdings reported without a transaction. */
+export const HOLDING_TABLE = "I-holding";
+
+/** One transaction line (or holding row). Shares, prices and holdings are decimal strings, never numbers. */
 export interface Line {
-  table: 1 | 2;
+  table: 1 | 2 | typeof HOLDING_TABLE;
   seq: number;
   securityTitle: string;
   code: string;
@@ -39,6 +42,8 @@ export interface ParsedForm4 {
   planSuspected: boolean;
   owners: Owner[];
   lines: Line[];
+  /** Problems that did not block the filing, e.g. a malformed Table II row. */
+  warnings: string[];
 }
 
 export type ParseResult = { ok: true; form4: ParsedForm4 } | { ok: false; error: string };

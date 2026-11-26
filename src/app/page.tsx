@@ -93,7 +93,7 @@ export default async function SignalsPage({ searchParams }: PageProps<"/">) {
                   <td className="pr-3 font-semibold">
                     {s.ticker ? <Link href={`/ticker/${s.ticker}`} className="hover:underline">{s.ticker}</Link> : s.issuerCik}
                   </td>
-                  <td className="pr-3" title={s.titleRaw ?? undefined}>{s.ownerName}</td>
+                  <td className="pr-3" title={s.titleRaw ?? undefined}>{s.ownerNames.join(", ")}</td>
                   <td className="pr-3">{s.role}</td>
                   <td className="pr-3 text-right font-mono" title={`${formatShares(s.shares)} sh at $${s.avgPrice}`}>
                     {formatUsd(s.value)}

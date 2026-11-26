@@ -66,3 +66,10 @@ describe("first buy lookback", () => {
     expect(partsOf(db, "P-3")).toContain("first buy");
   });
 });
+
+describe("score text", () => {
+  it("shows the increase with one decimal, like the table", () => {
+    const r = scoreSignal({ ...base, role: "OTHER", pctIncrease: "38.4615" });
+    expect(r.parts).toEqual([{ label: "+38.5% holdings", points: 2 }]);
+  });
+});

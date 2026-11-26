@@ -50,7 +50,7 @@ export default async function TickerPage({ params }: PageProps<"/ticker/[ticker]
             <li key={s.id} data-testid="ticker-signal" className="rounded border border-border p-2 text-sm">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 <span className="font-mono font-semibold">{s.score}</span>
-                <span>{s.ownerName} <span className="text-muted-foreground">({s.titleRaw ?? s.role})</span></span>
+                <span>{s.ownerNames.join(", ")} <span className="text-muted-foreground">({s.titleRaw ?? s.role})</span></span>
                 <span className="font-mono">{formatUsd(s.value)}</span>
                 <span className="font-mono">{formatShares(s.shares)} sh at ${s.avgPrice}</span>
                 <span className="font-mono">{formatIncrease(s.pctIncrease, s.newPosition)}</span>
