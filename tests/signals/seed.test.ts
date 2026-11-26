@@ -28,7 +28,15 @@ describe("seedSample", () => {
     expect(db.prepare("SELECT count(*) FROM signal WHERE score > 0").pluck().get()).toBeGreaterThan(3);
     expect(snapshot(db).clusters).toHaveLength(1);
     expect(db.prepare("SELECT insider_count FROM cluster").pluck().get()).toBe(3);
-    expect(db.prepare("SELECT count(*) FROM signal WHERE superseded_by IS NOT NULL").pluck().get()).toBe(1);
+    expect(db.prepare("SELECT count(*) FROM signal WHERE superseded_by_filing_id IS NOT NULL").pluck().get()).toBe(1);
+  });
+
+  it("never sets superseded_by without superseded_by_filing_id", () => {
+    const orphans = db
+      .prepare("SELECT count(*) FROM signal WHERE superseded_by IS NOT NULL AND superseded_by_filing_id IS NULL")
+      .pluck()
+      .get();
+    expect(orphans).toBe(0);
   });
 
   it("is a no-op when run again", () => {
