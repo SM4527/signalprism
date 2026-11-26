@@ -2,7 +2,7 @@ import { loadConfig } from "@/lib/config";
 import { getDb } from "@/lib/db";
 import { formatEt } from "@/lib/format";
 import { getPollStatus } from "@/lib/poll/poll-all";
-import { parseErrors, parseWarnings, pendingFetchFailures, recentPollRuns } from "@/lib/queries/status";
+import { parseErrors, parseWarnings, pendingFetchFailures, recentPollRuns, tickerMapInfo } from "@/lib/queries/status";
 import { lastRefresh } from "@/lib/watchlist/refresh";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +40,7 @@ export default function StatusPage() {
   const runs = recentPollRuns(db);
   const errors = parseErrors(db);
   const warnings = parseWarnings(db);
+  const tickerMap = tickerMapInfo(db);
 
   return (
     <div className="space-y-6">
@@ -118,6 +119,9 @@ export default function StatusPage() {
           <li>Pushover usage: not configured yet</li>
         </ul>
         <FolioStatus configured={!!config.FOLIOPRISM_URL} />
+        <p className="text-sm text-muted-foreground" data-testid="ticker-map-status">
+          Ticker map: {tickerMap.count === 0 ? "empty" : `${tickerMap.count} tickers, loaded ${formatEt(tickerMap.loadedAt!)}`}
+        </p>
       </section>
     </div>
   );

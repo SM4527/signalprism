@@ -56,6 +56,14 @@ export function parseWarnings(db: Database.Database, limit = 50): ParseErrorRow[
   return rows.map((r) => ({ accession: r.accession_no, issuerCik: r.issuer_cik, filedAt: r.filed_at, error: r.parse_warning }));
 }
 
+/** How many tickers the SEC ticker map holds and when it was last loaded (null when empty). */
+export function tickerMapInfo(db: Database.Database): { count: number; loadedAt: string | null } {
+  return db.prepare("SELECT count(*) AS count, max(updated_at) AS loadedAt FROM ticker_map").get() as {
+    count: number;
+    loadedAt: string | null;
+  };
+}
+
 /** Accessions with at least one failed XML fetch that are not yet given up on. */
 export const pendingFetchFailures = (db: Database.Database): number =>
   db

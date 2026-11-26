@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { z } from "zod";
 import type { SecClient } from "./client.ts";
+import { normalizeTicker } from "./ticker.ts";
 
 const WEEK_MS = 7 * 86_400_000;
 
@@ -16,15 +17,17 @@ export async function refreshTickerMap(
   return storeTickerMap(db, await client.get(`${archivesUrl}/files/company_tickers.json`), now);
 }
 
-/** Upsert `ticker_map` rows from a `company_tickers.json` body. */
+/** Upsert `ticker_map` rows (one per ticker, normalized; a CIK can have several) from a `company_tickers.json` body. */
 export function storeTickerMap(db: Database.Database, body: string, now: Date): number {
   const rows = Object.values(schema.parse(JSON.parse(body)));
   const put = db.prepare(
-    `INSERT INTO ticker_map (cik, ticker, name, updated_at) VALUES (?, ?, ?, ?)
-     ON CONFLICT (cik) DO UPDATE SET ticker = excluded.ticker, name = excluded.name, updated_at = excluded.updated_at`,
+    `INSERT INTO ticker_map (ticker, cik, name, updated_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT (ticker) DO UPDATE SET cik = excluded.cik, name = excluded.name, updated_at = excluded.updated_at`,
   );
   db.transaction(() => {
-    for (const r of rows) put.run(String(r.cik_str).padStart(10, "0"), r.ticker.toUpperCase(), r.title, now.toISOString());
+    for (const r of rows) {
+      put.run(normalizeTicker(r.ticker, "") ?? r.ticker.toUpperCase(), String(r.cik_str).padStart(10, "0"), r.title, now.toISOString());
+    }
   })();
   return rows.length;
 }

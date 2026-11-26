@@ -62,5 +62,7 @@
   "20": { "cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc" },
   "21": { "cik_str": 1045810, "ticker": "NVDA", "title": "NVIDIA Corp" },
   "22": { "cik_str": 1067839, "ticker": "QQQ", "title": "Invesco QQQ Trust Series 1" },
-  "23": { "cik_str": 36405, "ticker": "VTI", "title": "Vanguard Index Funds" }
+  "23": { "cik_str": 36405, "ticker": "VTI", "title": "Vanguard Index Funds" },
+  "24": { "cik_str": 1652044, "ticker": "GOOG", "title": "Alphabet Inc" },
+  "25": { "cik_str": 1067983, "ticker": "BRK-A", "title": "Berkshire Hathaway Inc" }
 }

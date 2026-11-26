@@ -51,7 +51,12 @@ export default async function WatchlistPage({ searchParams }: PageProps<"/watchl
           {companies.map((c) => (
             <tr key={c.cik} data-testid="watchlist-row" className="border-t border-border">
               <td className="pr-3 font-semibold"><Link href={`/ticker/${c.ticker}`} className="hover:underline">{c.ticker}</Link></td>
-              <td className="pr-3">{c.name}</td>
+              <td className="pr-3">
+                {c.name}
+                {c.otherTickers.length > 0 && (
+                  <span className="ml-2 text-xs text-muted-foreground" data-testid="other-tickers">also {c.otherTickers.join(" ")}</span>
+                )}
+              </td>
               <td className="pr-3"><SourceChips c={c} /></td>
               <td className="pr-3 font-mono">{c.lastFiled ?? "none"}</td>
               <td className="pr-3 font-mono">{c.lastPolledAt ? formatEt(c.lastPolledAt) : "never"}</td>

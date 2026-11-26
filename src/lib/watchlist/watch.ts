@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { normalizeTicker } from "../sec/ticker.ts";
 import { upsertCompany } from "../store/companies.ts";
 
 export interface WatchResult {
@@ -6,7 +7,8 @@ export interface WatchResult {
   unknown: string[];
 }
 
-const clean = (tickers: string[]) => [...new Set(tickers.map((t) => t.trim().toUpperCase()).filter(Boolean))];
+const clean = (tickers: string[]) =>
+  [...new Set(tickers.map((t) => normalizeTicker(t, "") ?? "").filter(Boolean))];
 
 /** Put tickers on the manual watch list, mapped to a CIK through `ticker_map`. Unknown tickers are reported, not added. */
 export function addTickers(db: Database.Database, tickers: string[], today: string): WatchResult {
@@ -27,7 +29,10 @@ export function addTickers(db: Database.Database, tickers: string[], today: stri
   return result;
 }
 
-/** Clear the manual flag; a company with no source left stops being polled. Unlisted tickers are reported. */
+/**
+ * Clear the manual flag of the company that owns the ticker (any of its tickers will do); a company with no
+ * source left stops being polled. Unlisted tickers are reported.
+ */
 export function removeTickers(db: Database.Database, tickers: string[]): WatchResult {
   const result: WatchResult = { done: [], unknown: [] };
   db.transaction(() => {
@@ -35,9 +40,9 @@ export function removeTickers(db: Database.Database, tickers: string[]): WatchRe
       const changed = db
         .prepare(
           `UPDATE company SET in_manual = 0, active = (in_direct OR in_funds)
-           WHERE ticker = ? AND in_manual = 1`,
+           WHERE in_manual = 1 AND (ticker = ? OR cik IN (SELECT cik FROM ticker_map WHERE ticker = ?))`,
         )
-        .run(ticker).changes;
+        .run(ticker, ticker).changes;
       (changed ? result.done : result.unknown).push(ticker);
     }
   })();

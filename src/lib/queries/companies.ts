@@ -11,13 +11,16 @@ export interface CompanyRow {
   lastPolledAt: string | null;
   lastError: string | null;
   signalCount: number;
+  /** Other tickers of the same company (share classes), sorted. */
+  otherTickers: string[];
 }
 
 const SELECT = `
   SELECT c.cik, c.ticker, c.name, c.in_direct, c.in_funds, c.in_manual,
          (SELECT max(f.filed_at) FROM filing f WHERE f.issuer_cik = c.cik) AS last_filed,
          k.last_polled_at, k.last_error,
-         (SELECT count(*) FROM signal s WHERE s.issuer_cik = c.cik AND s.superseded_by_filing_id IS NULL) AS signal_count
+         (SELECT count(*) FROM signal s WHERE s.issuer_cik = c.cik AND s.superseded_by_filing_id IS NULL) AS signal_count,
+         (SELECT group_concat(t.ticker, ' ') FROM ticker_map t WHERE t.cik = c.cik AND t.ticker != c.ticker) AS other_tickers
   FROM company c LEFT JOIN company_cursor k ON k.cik = c.cik
   WHERE c.active = 1`;
 
@@ -34,6 +37,7 @@ const toRow = (r: Raw): CompanyRow => ({
   lastPolledAt: r.last_polled_at as string | null,
   lastError: r.last_error as string | null,
   signalCount: r.signal_count as number,
+  otherTickers: ((r.other_tickers as string | null) ?? "").split(" ").filter(Boolean).sort(),
 });
 
 export const listWatchlist = (db: Database.Database): CompanyRow[] =>

@@ -1,6 +1,5 @@
 import type Database from "better-sqlite3";
 import type { Config } from "../config.ts";
-import { normalizeTicker } from "../sec/ticker.ts";
 import { recomputeIssuer } from "../signals/recompute.ts";
 import { upsertCompany } from "../store/companies.ts";
 import { ensureTickerMap } from "./ensure-ticker-map.ts";
@@ -45,7 +44,7 @@ export async function refreshFromFolioPrism(db: Database.Database, config: Confi
     await ensureTickerMap(db, config, now);
     const map = buildPortfolioMap(await fetchFolioData(config.FOLIOPRISM_URL!, now.getTime(), true));
     const cikOf = new Map(
-      (db.prepare("SELECT cik, ticker FROM ticker_map").all() as { cik: string; ticker: string }[]).map((r) => [normalizeTicker(r.ticker, r.cik)!, r.cik]),
+      (db.prepare("SELECT cik, ticker FROM ticker_map").all() as { cik: string; ticker: string }[]).map((r) => [r.ticker, r.cik]),
     );
     const wanted = [
       ...[...map.direct].map((t) => [t, "in_direct"] as const),
@@ -84,4 +83,4 @@ export async function refreshFromFolioPrism(db: Database.Database, config: Confi
 }
 
 const nameOf = (db: Database.Database, cik: string) =>
-  db.prepare("SELECT name FROM ticker_map WHERE cik = ?").pluck().get(cik) as string | null;
+  db.prepare("SELECT name FROM ticker_map WHERE cik = ? LIMIT 1").pluck().get(cik) as string | null;

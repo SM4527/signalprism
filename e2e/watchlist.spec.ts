@@ -17,6 +17,8 @@ test("refresh from FolioPrism builds direct and fund sources and lists untracked
   await expect(rows.filter({ hasText: "MSFT" }).getByText("direct", { exact: true })).toBeVisible();
   await expect(rows.filter({ hasText: "NVDA" }).getByText("funds", { exact: true })).toBeVisible();
   await expect(rows.filter({ hasText: "QQQ" })).toHaveCount(0);
+  await expect(rows.filter({ hasText: "GOOGL" }).getByTestId("other-tickers")).toHaveText("also GOOG");
+  await expect(rows.filter({ hasText: "Alphabet" })).toHaveCount(1);
   await expect(page.getByTestId("not-tracked")).toBeVisible();
   await expect(page.getByTestId("not-tracked-row").first()).toContainText("no SEC CIK");
   await page.goto("/status");
