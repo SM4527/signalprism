@@ -12,3 +12,4 @@ services:
       DB_PATH: /data/signalprism.db
     volumes:
       - ../data/sample:/data
+      - ../tests/fixtures:/app/tests/fixtures:ro

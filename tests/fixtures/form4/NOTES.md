@@ -35,3 +35,6 @@ Real public filings, one line per file, then synthetic files (`synthetic_*.xml`:
 - `synthetic_conversion_no_p.xml` - C conversion in both tables, no P.
 - `synthetic_malformed.xml` - truncated XML.
 - `synthetic_missing_issuer.xml` - valid XML without an issuer element.
+- `synthetic_cluster_director.xml` - ACME director P on 2026-11-16; joins the ACME CEO and CFO buys as a third insider in one cluster.
+- `synthetic_amendment_original.xml` - the Form 4 that `synthetic_amendment_4a.xml` amends (300 shares, 4/A has 400).
+- `synthetic_late_ceo.xml` - CEO P of $160K; filed with a manifest lag of more than two business days.

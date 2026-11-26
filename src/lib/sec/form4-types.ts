@@ -30,6 +30,8 @@ export interface Owner {
 export interface ParsedForm4 {
   formType: "4" | "4/A";
   periodOfReport: string | null;
+  /** 4/A only: the filing date of the amended original, when the XML says it. */
+  originalSubmissionDate: string | null;
   issuerCik: string;
   issuerName: string | null;
   tickerRaw: string | null;

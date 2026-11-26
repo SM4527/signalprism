@@ -13,6 +13,12 @@ describe("db", () => {
     expect(db.prepare("SELECT count(*) FROM scheduler_lock").pluck().get()).toBe(1);
   });
 
+  it("applies 0002 unique indexes", () => {
+    const db = openDb(":memory:");
+    const idx = db.prepare("SELECT name FROM sqlite_master WHERE type = 'index'").pluck().all();
+    expect(idx).toEqual(expect.arrayContaining(["signal_filing_owner", "cluster_issuer_window"]));
+  });
+
   it("sets busy_timeout", () => {
     const db = openDb(":memory:");
     expect(db.pragma("busy_timeout", { simple: true })).toBe(5000);

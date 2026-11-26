@@ -42,6 +42,7 @@ export const form4Schema = z.looseObject({
   ownershipDocument: z.looseObject({
     documentType: z.enum(["4", "4/A"]),
     periodOfReport: z.string().optional(),
+    dateOfOriginalSubmission: z.string().optional(),
     issuer: z.looseObject({
       issuerCik: z.string(),
       issuerName: z.string().optional(),

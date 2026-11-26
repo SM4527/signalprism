@@ -100,6 +100,7 @@ export function parseForm4(source: string): ParseResult {
     form4: {
       formType: doc.documentType,
       periodOfReport: doc.periodOfReport ?? null,
+      originalSubmissionDate: doc.dateOfOriginalSubmission?.slice(0, 10) ?? null,
       issuerCik: doc.issuer.issuerCik,
       issuerName: doc.issuer.issuerName ?? null,
       tickerRaw: doc.issuer.issuerTradingSymbol ?? null,
