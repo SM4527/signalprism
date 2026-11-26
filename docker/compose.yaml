@@ -1,0 +1,14 @@
+name: signalprism-sample
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "127.0.0.1:8500:3000"
+    environment:
+      DATA_MODE: mock
+      DB_PATH: /data/signalprism.db
+    volumes:
+      - ../data/sample:/data

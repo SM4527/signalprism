@@ -1,0 +1,17 @@
+# Personal stack. Start only via scripts/personal-start.sh, which passes
+# --env-file .env.personal (it must define PERSONAL_PORT, SEC_USER_AGENT and the Pushover keys).
+name: signalprism-personal
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "127.0.0.1:${PERSONAL_PORT:?set PERSONAL_PORT in .env.personal}:3000"
+    env_file: ../.env.personal
+    environment:
+      DATA_MODE: live
+      DB_PATH: /data/signalprism.db
+    volumes:
+      - ../data/local:/data
