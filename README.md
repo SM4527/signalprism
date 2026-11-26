@@ -14,6 +14,17 @@ scripts/logs.sh
 scripts/stop.sh
 ```
 
+## Watch list
+
+Add or remove tickers by hand with the scripts inside the running container (tickers come only from the command line). The first `watch:add` loads the ticker map: from SEC in live mode, from a fixture in mock mode.
+
+```
+docker compose -f docker/compose.yaml exec app node scripts/watch-add.ts ACMR FLCN        # sample stack
+docker compose --env-file .env.personal -p signalprism-personal -f docker/compose.personal.yml exec app node scripts/watch-add.ts TICKER   # personal stack
+```
+
+Use `scripts/watch-remove.ts` the same way. Unknown tickers are reported, not added.
+
 ## Development
 
 ```

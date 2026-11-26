@@ -1,0 +1,52 @@
+{
+  "0": {
+    "cik_str": 9000001,
+    "ticker": "ACMR",
+    "title": "Acme Robotics Corp"
+  },
+  "1": {
+    "cik_str": 9000002,
+    "ticker": "BFLD",
+    "title": "Bluefield Energy Inc"
+  },
+  "2": {
+    "cik_str": 9000003,
+    "ticker": "CDWD",
+    "title": "Cedarwood Software Inc"
+  },
+  "3": {
+    "cik_str": 9000004,
+    "ticker": "DNMF",
+    "title": "Dunmore Foods Co"
+  },
+  "4": {
+    "cik_str": 9000005,
+    "ticker": "EVMD",
+    "title": "Evergreen Medical Inc"
+  },
+  "5": {
+    "cik_str": 9000006,
+    "ticker": "FLCN",
+    "title": "Falconridge Logistics Inc"
+  },
+  "6": {
+    "cik_str": 9000008,
+    "ticker": "HLFN",
+    "title": "Harborlight Financial Inc"
+  },
+  "7": {
+    "cik_str": 9000009,
+    "ticker": "IRBR",
+    "title": "Ironbridge Industrial Corp"
+  },
+  "8": {
+    "cik_str": 9000010,
+    "ticker": "JNPR",
+    "title": "Juniper Biosciences Inc"
+  },
+  "9": {
+    "cik_str": 9000012,
+    "ticker": "HLFD",
+    "title": "Harborlight Foods Inc"
+  }
+}

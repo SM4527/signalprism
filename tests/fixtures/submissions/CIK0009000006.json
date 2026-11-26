@@ -1,0 +1,29 @@
+{
+  "cik": "9000006",
+  "name": "Falcon Foods (synthetic)",
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0009990006-26-000002",
+        "0009990006-26-000001",
+        "0009990006-26-000000"
+      ],
+      "filingDate": [
+        "2026-10-26",
+        "2026-10-22",
+        "2026-10-01"
+      ],
+      "form": [
+        "4/A",
+        "4",
+        "3"
+      ],
+      "primaryDocument": [
+        "xslF345X05/synthetic_amendment_4a.xml",
+        "xslF345X05/synthetic_amendment_original.xml",
+        "doc3.xml"
+      ]
+    },
+    "files": []
+  }
+}

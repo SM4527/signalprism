@@ -14,5 +14,8 @@ COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
 COPY --from=build /app/migrations ./migrations
+COPY --from=build /app/node_modules/zod ./node_modules/zod
+COPY --from=build /app/src ./src
+COPY --from=build /app/scripts/watch-add.ts /app/scripts/watch-remove.ts ./scripts/
 EXPOSE 3000
 CMD ["node", "server.js"]

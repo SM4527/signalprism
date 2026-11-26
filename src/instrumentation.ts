@@ -11,4 +11,6 @@ export async function register() {
     const { seedSample } = await import("@/lib/seed-sample");
     seedSample(db, new Date().toISOString().slice(0, 10));
   }
+  const { startScheduler } = await import("@/lib/scheduler");
+  startScheduler(db, config);
 }
