@@ -1,6 +1,6 @@
 # Form 4 fixtures
 
-Real public filings, one line per file. Synthetic files (`synthetic_*.xml`) are added in milestone 1.
+Real public filings, one line per file, then synthetic files (`synthetic_*.xml`: real structure, made-up issuers, people and CIKs).
 
 - `AMZN_form4.xml` - many S lines under 10b5-1 (box ticked), with an M exercise and a derivative table.
 - `BRK_ownership.xml` - G gift; ticker `BRK.A`; booleans spelled `true/false`.
@@ -17,3 +17,21 @@ Real public filings, one line per file. Synthetic files (`synthetic_*.xml`) are 
 - `PG_form4.xml` - S sale, direct and indirect.
 - `SPG_form4-10012026_071044.xml` - P purchase with a footnote.
 - `VZ_wk-form4_1795621978.xml` - S sale under 10b5-1 (box ticked), indirect.
+
+## Synthetic
+
+- `synthetic_ceo_multi_p.xml` - CEO, three P lines (Mon, Mon, Wed) in one bucket; weighted-average price footnote on the last.
+- `synthetic_p_mixed_codes.xml` - CFO, same-day Table I M, P, A and F in one bucket; Table II M must not move the baseline.
+- `synthetic_new_position.xml` - CFO first buy, owned after equals shares bought; Class A Common Shares.
+- `synthetic_joint_filers.xml` - two 10% owners on one filing, indirect, same line.
+- `synthetic_indirect_natures.xml` - P in direct, By Family Trust and By Spouse buckets.
+- `synthetic_no_price.xml` - P line with an empty price.
+- `synthetic_p_10b5_box.xml` - P with the 10b5-1 box ticked.
+- `synthetic_p_10b5_footnote.xml` - box unticked, footnote mentions a 10b5-1 plan.
+- `synthetic_amendment_4a.xml` - document type 4/A.
+- `synthetic_ticker_none.xml` - issuer ticker `NONE`.
+- `synthetic_non_common.xml` - P of Series A Preferred Stock.
+- `synthetic_holiday_week.xml` - CEO P on Wed 2026-11-25, Thanksgiving week.
+- `synthetic_conversion_no_p.xml` - C conversion in both tables, no P.
+- `synthetic_malformed.xml` - truncated XML.
+- `synthetic_missing_issuer.xml` - valid XML without an issuer element.
