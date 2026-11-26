@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { Config } from "@/lib/config";
+import { formatEt } from "@/lib/format";
 import { pollAll } from "@/lib/poll/poll-all";
 import type { SecUrls } from "@/lib/poll/poll-company";
 import { SecClient, SecPaused } from "@/lib/sec/client";
@@ -36,10 +37,15 @@ export interface SchedulerDeps {
 
 export type TickResult = "ran" | "skipped_running" | "not_owner" | "paused";
 
-/** Polls on a timer, only while it holds the `scheduler_lock` row, never two runs at once. */
+/**
+ * Polls on a timer, only while it holds the `scheduler_lock` row, never two runs at once.
+ * The next tick is always re-armed; while the lock is held by someone else the claim is retried every 30 s.
+ */
 export class Scheduler {
   private running = false;
   private stopped = false;
+  /** Null until the first claim attempt, so the first outcome is always logged. */
+  private held: boolean | null = null;
   private timer?: NodeJS.Timeout;
   private heartbeat?: NodeJS.Timeout;
   private owner: string;
@@ -69,12 +75,22 @@ export class Scheduler {
     );
   }
 
+  /** Claim and log the change of state (claimed / waiting) once, not on every attempt. */
+  private acquire(): boolean {
+    const got = this.claim();
+    if (got !== this.held) {
+      this.held = got;
+      this.log(got ? "lock claimed" : "waiting for lock");
+    }
+    return got;
+  }
+
   async tick(): Promise<TickResult> {
     if (this.running) {
       this.log("tick skipped: a poll is still running");
       return "skipped_running";
     }
-    if (!this.claim()) return "not_owner";
+    if (!this.acquire()) return "not_owner";
     this.running = true;
     try {
       const now = this.now();
@@ -82,7 +98,10 @@ export class Scheduler {
         await refreshTickerMap(this.d.db, this.d.client, this.d.urls.archivesUrl, now);
       }
       const r = await pollAll(this.d.db, this.d.client, this.d.urls, now);
-      if (r === "paused") return "paused";
+      if (r === "paused") {
+        this.log("tick skipped: SEC polling is paused");
+        return "paused";
+      }
       this.log(`poll done: ${r.filingsNew} new filings, ${r.signalsNew} new signals, ${r.errors} errors`);
       return "ran";
     } catch (e) {
@@ -103,20 +122,77 @@ export class Scheduler {
   }
 
   start(): void {
-    this.heartbeat = setInterval(() => this.claim(), HEARTBEAT_MS).unref();
-    const loop = async () => {
-      await this.tick();
-      if (!this.stopped) this.timer = setTimeout(loop, nextDelayMs(this.now())).unref();
-    };
-    void loop();
+    this.log("started");
+    this.heartbeat = setInterval(() => this.beat(), HEARTBEAT_MS).unref();
+    void this.loop();
+  }
+
+  /** One tick, then always the next one: a throw, a skip or an empty watch list never ends the chain. */
+  private async loop(): Promise<void> {
+    let delay = nextDelayMs(this.now());
+    try {
+      if ((await this.tick()) === "not_owner") delay = HEARTBEAT_MS;
+    } catch (e) {
+      this.log(`tick failed: ${(e as Error).name}`);
+    } finally {
+      if (!this.stopped) this.arm(delay);
+    }
+  }
+
+  private arm(ms: number): void {
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => void this.loop(), ms).unref();
+    this.log(`next tick ${formatEt(new Date(this.now().getTime() + ms).toISOString())}`);
+  }
+
+  /** Every 30 s: keep the lock fresh, notice a lost lock, and run a poll someone asked for (`poll:now`). */
+  private beat(): void {
+    try {
+      if (!this.held) return;
+      if (!this.acquire()) {
+        this.arm(HEARTBEAT_MS);
+        return;
+      }
+      if (this.takePollRequest()) {
+        this.log("poll requested");
+        void this.tick().catch((e) => this.log(`tick failed: ${(e as Error).name}`));
+      }
+    } catch (e) {
+      this.log(`heartbeat failed: ${(e as Error).name}`);
+    }
+  }
+
+  private takePollRequest(): boolean {
+    return (
+      this.d.db
+        .prepare("UPDATE scheduler_lock SET poll_requested_at = NULL WHERE id = 1 AND poll_requested_at IS NOT NULL")
+        .run().changes === 1
+    );
   }
 
   stop(): void {
     this.stopped = true;
+    this.held = false;
     if (g.__signalprismScheduler === this) g.__signalprismScheduler = undefined;
     clearInterval(this.heartbeat);
     clearTimeout(this.timer);
     this.d.db.prepare("UPDATE scheduler_lock SET owner = NULL WHERE id = 1 AND owner = ?").run(this.owner);
+  }
+}
+
+interface SignalSource {
+  pid: number;
+  once(signal: NodeJS.Signals, listener: () => void): unknown;
+  kill(pid: number, signal: NodeJS.Signals): unknown;
+}
+
+/** On SIGTERM or SIGINT release the lock row, then re-raise the signal so the process ends as before. */
+export function installSignalHandlers(s: Scheduler, proc: SignalSource = process): void {
+  for (const signal of ["SIGTERM", "SIGINT"] as const) {
+    proc.once(signal, () => {
+      s.stop();
+      proc.kill(proc.pid, signal);
+    });
   }
 }
 
@@ -129,5 +205,6 @@ export function startScheduler(db: Database.Database, config: Config): Scheduler
   const urls = { dataUrl: config.SEC_DATA_URL, archivesUrl: config.SEC_ARCHIVES_URL };
   g.__signalprismScheduler = new Scheduler({ db, client, urls });
   g.__signalprismScheduler.start();
+  installSignalHandlers(g.__signalprismScheduler);
   return g.__signalprismScheduler;
 }

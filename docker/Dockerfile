@@ -16,6 +16,6 @@ COPY --from=build /app/public ./public
 COPY --from=build /app/migrations ./migrations
 COPY --from=build /app/node_modules/zod ./node_modules/zod
 COPY --from=build /app/src ./src
-COPY --from=build /app/scripts/watch-add.ts /app/scripts/watch-remove.ts ./scripts/
+COPY --from=build /app/scripts/watch-add.ts /app/scripts/watch-remove.ts /app/scripts/poll-now.ts ./scripts/
 EXPOSE 3000
 CMD ["node", "server.js"]

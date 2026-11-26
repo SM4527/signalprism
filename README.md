@@ -25,6 +25,14 @@ docker compose --env-file .env.personal -p signalprism-personal -f docker/compos
 
 Use `scripts/watch-remove.ts` the same way. Unknown tickers are reported, not added.
 
+The scheduler polls every 30 minutes on weekdays 06:00-22:30 ET and every 3 hours otherwise, so new tickers wait for the next tick. To poll right away (live mode only; the running scheduler does the poll and the script prints its counts):
+
+```
+docker compose --env-file .env.personal -p signalprism-personal -f docker/compose.personal.yml exec app node scripts/poll-now.ts
+```
+
+The container logs one line per scheduler event (started, lock claimed or waiting, tick ran or skipped, next tick in ET).
+
 ## Development
 
 ```
