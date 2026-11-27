@@ -29,6 +29,13 @@ const dollars = (v: string) =>
   : new Decimal(v).gte(1_000) ? `$${new Decimal(v).div(1_000).toDecimalPlaces(0)}K`
   : `$${v}`;
 
+const sign = (n: number) => (n > 0 ? `+${n}` : `${n}`);
+
+/** `Score 9: CEO +3, $1.2M +3, first buy in 12 months +2, held directly +1`. */
+export function scoreText(score: number, parts: ScorePart[]): string {
+  return `Score ${score}: ${parts.map((p) => `${p.label} ${sign(p.points)}`).join(", ")}`;
+}
+
 /** Deterministic score with its breakdown. */
 export function scoreSignal(s: ScoreInput): Score {
   const parts: ScorePart[] = [];

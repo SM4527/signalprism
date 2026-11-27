@@ -6,7 +6,7 @@ import { SecLink } from "@/components/sec-link";
 import { SourceChips } from "@/components/source-chips";
 import { loadConfig } from "@/lib/config";
 import { getDb } from "@/lib/db";
-import { formatEt, formatIncrease, formatShares, formatUsd } from "@/lib/format";
+import { formatEt, formatIncrease, formatShares, formatSignalCount, formatUsd } from "@/lib/format";
 import { companyByTicker } from "@/lib/queries/companies";
 import { groupAudit } from "@/lib/queries/audit";
 import { clustersForIssuer } from "@/lib/queries/rules";
@@ -50,7 +50,7 @@ export default async function TickerPage({ params, searchParams }: PageProps<"/t
       )}
 
       <section>
-        <h2 className="mb-1 font-semibold">Signals ({signals.length})</h2>
+        <h2 className="mb-1 font-semibold" data-testid="signals-heading">{formatSignalCount(signals.length, signals.filter((s) => s.planKind).length)}</h2>
         {signals.length === 0 && <p className="text-sm text-muted-foreground">No signals.</p>}
         <ul className="space-y-2">
           {signals.map((s) => (

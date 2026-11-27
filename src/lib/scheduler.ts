@@ -2,7 +2,10 @@ import type Database from "better-sqlite3";
 import type { Config } from "@/lib/config";
 import { formatEt } from "@/lib/format";
 import { pollAll } from "@/lib/poll/poll-all";
-import type { SecUrls } from "@/lib/poll/poll-company";
+import type { PollOptions, SecUrls } from "@/lib/poll/poll-company";
+import { releaseSending } from "@/lib/notify/deliver";
+import { runRetentionIfDue } from "@/lib/retention";
+import { deliverOnce } from "@/lib/notify/runtime";
 import { SecClient, SecPaused } from "@/lib/sec/client";
 import { getSecClient } from "@/lib/sec/shared-client";
 import { refreshTickerMap, tickerMapStale } from "@/lib/sec/ticker-map";
@@ -44,6 +47,13 @@ export interface SchedulerDeps {
   owner?: string;
   now?: () => Date;
   log?: (msg: string) => void;
+  pollOptions?: PollOptions;
+  /** Send held notifications. Called only while this process holds the lock: after each poll and on each heartbeat. */
+  deliver?: () => Promise<unknown>;
+  /** Runs when this process takes the lock (put 'sending' rows back to 'held'). */
+  onClaim?: () => void;
+  /** Weekly housekeeping, called after each poll while holding the lock; returns a line to log, or nothing. */
+  maintain?: (now: Date) => string | void;
 }
 
 export type TickResult = "ran" | "skipped_running" | "not_owner" | "paused";
@@ -91,9 +101,25 @@ export class Scheduler {
     const got = this.claim();
     if (got !== this.held) {
       this.held = got;
+      if (got) this.d.onClaim?.();
       this.log(got ? "lock claimed" : "waiting for lock");
     }
     return got;
+  }
+
+  /** True while this process holds the scheduler lock. */
+  get holdsLock(): boolean {
+    return this.held === true;
+  }
+
+  /** One delivery pass, only for the lock holder; a failure is logged and never ends the chain. */
+  private async runDelivery(): Promise<void> {
+    if (!this.held || !this.d.deliver) return;
+    try {
+      await this.d.deliver();
+    } catch (e) {
+      this.log(`delivery failed: ${(e as Error).name}`);
+    }
   }
 
   async tick(): Promise<TickResult> {
@@ -108,7 +134,7 @@ export class Scheduler {
       if (tickerMapStale(this.d.db, now)) {
         await refreshTickerMap(this.d.db, this.d.client, this.d.urls.archivesUrl, now);
       }
-      const r = await pollAll(this.d.db, this.d.client, this.d.urls, now);
+      const r = await pollAll(this.d.db, this.d.client, this.d.urls, now, this.d.pollOptions);
       if (r === "paused") {
         this.log("tick skipped: SEC polling is paused");
         return "paused";
@@ -120,7 +146,19 @@ export class Scheduler {
       this.log(`poll failed: ${(e as Error).name}`);
       return "ran";
     } finally {
+      await this.runDelivery();
+      this.runMaintenance();
       this.running = false;
+    }
+  }
+
+  private runMaintenance(): void {
+    if (!this.held || !this.d.maintain) return;
+    try {
+      const line = this.d.maintain(this.now());
+      if (line) this.log(line);
+    } catch (e) {
+      this.log(`maintenance failed: ${(e as Error).name}`);
     }
   }
 
@@ -168,6 +206,8 @@ export class Scheduler {
         this.log("poll requested");
         void this.tick().catch((e) => this.log(`tick failed: ${(e as Error).name}`));
       }
+      // Quiet hours end and digests fall due between polls, so delivery also runs on the heartbeat.
+      void this.runDelivery();
     } catch (e) {
       this.log(`heartbeat failed: ${(e as Error).name}`);
     }
@@ -213,7 +253,19 @@ const g = globalThis as { __signalprismScheduler?: Scheduler };
 export function startScheduler(db: Database.Database, config: Config): Scheduler | undefined {
   if (config.DATA_MODE !== "live" || g.__signalprismScheduler) return g.__signalprismScheduler;
   const urls = { dataUrl: config.SEC_DATA_URL, archivesUrl: config.SEC_ARCHIVES_URL };
-  g.__signalprismScheduler = new Scheduler({ db, client: getSecClient(config), urls });
+  const scheduler: Scheduler = new Scheduler({
+    db,
+    client: getSecClient(config),
+    urls,
+    pollOptions: { maxAgeDays: config.ALERT_MAX_AGE_DAYS },
+    deliver: () => deliverOnce(db, config, () => scheduler.holdsLock),
+    onClaim: () => releaseSending(db),
+    maintain: (now) => {
+      const r = runRetentionIfDue(db, config, now);
+      if (r) return `retention: ${r.pollRuns} poll runs, ${r.notifications} notifications, ${r.auditLines} audit lines, ${r.companies} companies removed`;
+    },
+  });
+  g.__signalprismScheduler = scheduler;
   g.__signalprismScheduler.start();
   installSignalHandlers(g.__signalprismScheduler);
   return g.__signalprismScheduler;

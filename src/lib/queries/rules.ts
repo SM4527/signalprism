@@ -6,7 +6,11 @@ export interface NotificationConfig {
   quietStart: string | null;
   quietEnd: string | null;
   digest: boolean;
+  /** `HH:MM` ET when the daily summary goes out. */
+  digestTime: string;
   dailyCap: number;
+  /** Last Pushover usage headers seen; null until a message was sent. */
+  usage: { limit: number; remaining: number; resetAt: string; seenAt: string } | null;
 }
 
 export function loadNotificationConfig(db: Database.Database): NotificationConfig | null {
@@ -18,7 +22,17 @@ export function loadNotificationConfig(db: Database.Database): NotificationConfi
     quietStart: r.quiet_start as string | null,
     quietEnd: r.quiet_end as string | null,
     digest: !!r.digest,
+    digestTime: r.digest_time as string,
     dailyCap: r.daily_cap as number,
+    usage:
+      r.usage_limit === null || r.usage_remaining === null || r.usage_reset_at === null
+        ? null
+        : {
+            limit: r.usage_limit as number,
+            remaining: r.usage_remaining as number,
+            resetAt: r.usage_reset_at as string,
+            seenAt: r.usage_seen_at as string,
+          },
   };
 }
 

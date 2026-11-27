@@ -14,6 +14,8 @@ export interface SignalRow {
   late: number;
   plan_suspected: number;
   plan_kind: PlanKind | null;
+  /** 1 when the signal came from a first poll or an old filing: recorded, never alerted. */
+  historical: number;
   held_via: "direct" | "funds" | null;
   superseded_by: number | null;
   superseded_by_filing: number | null;
@@ -39,7 +41,7 @@ export function loadIssuerRows(db: Database.Database, issuerCik: string): Signal
   return db
     .prepare(
       `SELECT s.id, s.filing_id, s.issuer_cik, s.txn_date, s.value, s.pct_increase, s.new_position,
-              s.late, s.plan_suspected, s.plan_kind, s.held_via, s.superseded_by, s.superseded_by_filing_id AS superseded_by_filing,
+              s.late, s.plan_suspected, s.plan_kind, s.historical, s.held_via, s.superseded_by, s.superseded_by_filing_id AS superseded_by_filing,
               o.role, o.owner_cik, o.owner_name, o.joint_group_id,
               f.form_type, f.filed_at, f.period_of_report
        FROM signal s

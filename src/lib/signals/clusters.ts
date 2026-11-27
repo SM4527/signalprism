@@ -71,6 +71,21 @@ function insiderComponents(rows: SignalRow[]): (r: SignalRow) => string {
   return (r) => find(personKey(r));
 }
 
+/**
+ * A stable key per insider: the smallest person key (CIK, else normalized name) of the insider's component
+ * over all `rows`. Used to tell a new insider from a reshuffled set when deciding whether to push a cluster.
+ */
+export function insiderKeys(rows: SignalRow[]): (r: SignalRow) => string {
+  const insiderOf = insiderComponents(rows);
+  const smallest = new Map<string, string>();
+  for (const r of rows) {
+    const root = insiderOf(r);
+    const key = personKey(r);
+    if (!smallest.has(root) || key < smallest.get(root)!) smallest.set(root, key);
+  }
+  return (r) => smallest.get(insiderOf(r))!;
+}
+
 /** Sum of member values; a joint filing's identical rows count once. */
 function totalValue(members: SignalRow[]): string {
   const seen = new Set<string>();

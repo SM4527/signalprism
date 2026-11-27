@@ -43,6 +43,14 @@ Fallback if `host.docker.internal` does not reach FolioPrism: put both container
 
 Watchlist add, remove and refresh are POST routes that answer loopback requests only (by `Host` and `Origin`).
 
+## Alerts
+
+A new CEO or CFO buy (default: at least $100K or a 10% holdings increase, not late, not a plan buy), or a cluster that gains an insider, becomes a held notification; the scheduler's lock holder sends it. Alerts never fire for history: a company's first poll and any filing more than 3 days old at ingest are recorded only. Quiet hours (ET) hold everything; the daily cap (default 10) sends the rest in one summary the next morning; an optional daily digest bundles the non-urgent ones. Everything is on the Rules page (edits are loopback-only POST forms), with "Send test push". Status shows Pushover usage from the API's limit headers.
+
+Set `PUSHOVER_APP_TOKEN` and `PUSHOVER_USER_KEY` in `.env.personal` (never committed; they are only read by the client and never logged or stored). Without them, or on the sample stack, nothing is sent: the sample stack logs the would-be messages. `PUSH_PORTFOLIO_HINT` (`off`, `flag`, `detail`) seeds the Rules page setting; default `off`. Delivery is at-least-once: a crash during a request can repeat a push, never lose one.
+
+Housekeeping runs weekly in the scheduler: poll runs older than 90 days, notifications older than a year, stored lines that did not become a signal older than 3 years, and the stored data (not the signals) of companies inactive for 90 days are deleted, then the database is vacuumed (`RETENTION_*` variables change the periods).
+
 ## Development
 
 ```

@@ -60,14 +60,14 @@ export function evaluateRule(s: RuleInput, rule: AlertRule): RuleResult {
 const yes = (reason: string): RuleResult => ({ matches: true, reasons: [reason] });
 
 /** Create the default rule and notification config on first start. */
-export function seedDefaults(db: Database.Database): void {
+export function seedDefaults(db: Database.Database, portfolioHint: "off" | "flag" | "detail" = "off"): void {
   if (db.prepare("SELECT count(*) FROM alert_rule").pluck().get() === 0) {
     db.prepare(
       `INSERT INTO alert_rule (name, roles_json, min_value, min_pct, director_min_value)
        VALUES ('Default', ?, '100000', '10', '250000')`,
     ).run(JSON.stringify(["CEO", "CFO"]));
   }
-  db.prepare("INSERT OR IGNORE INTO notification_config (id) VALUES (1)").run();
+  db.prepare("INSERT OR IGNORE INTO notification_config (id, portfolio_hint) VALUES (1, ?)").run(portfolioHint);
 }
 
 export function loadRules(db: Database.Database): AlertRule[] {

@@ -101,3 +101,15 @@ describe("refresh and manual add with share classes", () => {
     expect(db.prepare("SELECT active FROM company WHERE cik = '0009200001'").pluck().get()).toBe(0);
   });
 });
+
+describe("watchlist ticker display", () => {
+  it("lists common share classes and counts the preferred tickers", () => {
+    const db = openDb(":memory:");
+    storeTickerMap(db, TICKERS, NOW);
+    addTickers(db, ["BANK"], "2026-11-26");
+    addTickers(db, ["DUAL"], "2026-11-26");
+    const row = (t: string) => listWatchlist(db).find((c) => c.ticker === t)!;
+    expect(row("BANK")).toMatchObject({ otherTickers: [], moreTickers: ["BANK-PC", "BANK-PD"] });
+    expect(row("DUAL")).toMatchObject({ otherTickers: ["DUAL-B"], moreTickers: [] });
+  });
+});

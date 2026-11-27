@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatEt, formatIncrease, formatShares, formatUsd } from "@/lib/format";
+import { formatEt, formatIncrease, formatShares, formatSignalCount, formatUsd } from "@/lib/format";
 import { filingIndexUrl } from "@/lib/sec/links";
 
 describe("formatEt", () => {
@@ -45,5 +45,12 @@ describe("filingIndexUrl", () => {
   });
   it("honors another archives host", () => {
     expect(filingIndexUrl("1", "0000000001-26-000001", "http://x")).toMatch(/^http:\/\/x\/Archives/);
+  });
+});
+
+describe("formatSignalCount", () => {
+  it("shows the plan buys only when there are some", () => {
+    expect(formatSignalCount(14, 0)).toBe("Signals (14)");
+    expect(formatSignalCount(261, 247)).toBe("Signals (261, 247 plan)");
   });
 });

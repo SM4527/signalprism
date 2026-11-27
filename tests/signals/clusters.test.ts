@@ -5,7 +5,7 @@ import type { SignalRow } from "@/lib/signals/issuer-rows";
 let n = 0;
 const row = (o: Partial<SignalRow>): SignalRow => ({
   id: ++n, filing_id: n, issuer_cik: "1", txn_date: "2026-01-01", value: "1000", pct_increase: null,
-  new_position: 0, late: 0, plan_suspected: 0, plan_kind: null, held_via: null, superseded_by: null, superseded_by_filing: null, role: "CEO",
+  new_position: 0, late: 0, plan_suspected: 0, plan_kind: null, historical: 0, held_via: null, superseded_by: null, superseded_by_filing: null, role: "CEO",
   owner_cik: `c${n}`, owner_name: `Person ${n}`, joint_group_id: null, form_type: "4",
   filed_at: "2026-01-02", period_of_report: "2026-01-01", ...o,
 });

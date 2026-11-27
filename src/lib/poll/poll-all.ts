@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import { SecPaused, type SecClient } from "@/lib/sec/client";
-import { pollCompany, type PollCounts, type SecUrls } from "./poll-company";
+import { pollCompany, type PollCounts, type PollOptions, type SecUrls } from "./poll-company";
 
 export interface PollStatus {
   lastRun: { started_at: string; finished_at: string | null; requests: number; filings_new: number; signals_new: number; errors: number } | null;
@@ -22,6 +22,7 @@ export async function pollAll(
   client: SecClient,
   urls: SecUrls,
   now: Date,
+  options: PollOptions = {},
 ): Promise<PollCounts | "paused"> {
   if (getPollStatus(db, now).pausedUntil) return "paused";
   const run = db.prepare("INSERT INTO poll_run (started_at) VALUES (?)").run(now.toISOString()).lastInsertRowid;
@@ -32,7 +33,7 @@ export async function pollAll(
   const companies = db.prepare("SELECT cik FROM company WHERE active = 1 ORDER BY cik").pluck().all() as string[];
   for (const cik of companies) {
     try {
-      const c = await pollCompany(db, client, urls, cik, now);
+      const c = await pollCompany(db, client, urls, cik, now, options);
       total.filingsNew += c.filingsNew;
       total.signalsNew += c.signalsNew;
       total.errors += c.errors;

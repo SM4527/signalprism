@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { isCommonTicker } from "@/lib/sec/ticker";
 
 export interface CompanyRow {
   cik: string;
@@ -11,8 +12,10 @@ export interface CompanyRow {
   lastPolledAt: string | null;
   lastError: string | null;
   signalCount: number;
-  /** Other tickers of the same company (share classes), sorted. */
+  /** Other common-stock tickers of the same company (share classes), sorted. */
   otherTickers: string[];
+  /** Its preferred, warrant, unit and rights tickers, sorted: shown as a count. */
+  moreTickers: string[];
 }
 
 const SELECT = `
@@ -26,7 +29,12 @@ const SELECT = `
 
 type Raw = Record<string, string | number | null>;
 
-const toRow = (r: Raw): CompanyRow => ({
+const toRow = (r: Raw): CompanyRow => {
+  const others = ((r.other_tickers as string | null) ?? "").split(" ").filter(Boolean).sort();
+  return toRowWith(r, others.filter(isCommonTicker), others.filter((t) => !isCommonTicker(t)));
+};
+
+const toRowWith = (r: Raw, otherTickers: string[], moreTickers: string[]): CompanyRow => ({
   cik: r.cik as string,
   ticker: r.ticker as string,
   name: r.name as string | null,
@@ -37,7 +45,8 @@ const toRow = (r: Raw): CompanyRow => ({
   lastPolledAt: r.last_polled_at as string | null,
   lastError: r.last_error as string | null,
   signalCount: r.signal_count as number,
-  otherTickers: ((r.other_tickers as string | null) ?? "").split(" ").filter(Boolean).sort(),
+  otherTickers,
+  moreTickers,
 });
 
 export const listWatchlist = (db: Database.Database): CompanyRow[] =>

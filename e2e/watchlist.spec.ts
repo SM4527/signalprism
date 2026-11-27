@@ -25,6 +25,14 @@ test("refresh from FolioPrism builds direct and fund sources and lists untracked
   await expect(page.getByTestId("folioprism-status")).toContainText("reachable");
 });
 
+test("preferred tickers of a company show as a count, not a list", async ({ page }) => {
+  await page.goto("/watchlist");
+  const jpm = page.getByTestId("watchlist-row").filter({ has: page.getByRole("link", { name: "JPM", exact: true }) });
+  await expect(jpm.getByTestId("more-tickers")).toHaveText("+2 other");
+  await expect(jpm.getByTestId("more-tickers")).toHaveAttribute("title", "JPM-PC JPM-PD");
+  await expect(jpm.getByTestId("other-tickers")).toHaveCount(0);
+});
+
 test("a manual ticker can be removed and added back; an unknown one is reported", async ({ page }) => {
   await page.goto("/watchlist");
   const acme = page.getByTestId("watchlist-row").filter({ hasText: "ACMR" });
@@ -41,7 +49,7 @@ test("a manual ticker can be removed and added back; an unknown one is reported"
 test("the other screens load", async ({ page }) => {
   await page.goto("/rules");
   await expect(page.getByRole("heading", { name: "Rules" })).toBeVisible();
-  await expect(page.getByText("CEO, CFO")).toBeVisible();
+  await expect(page.getByTestId("rule-form").first().getByLabel("CEO")).toBeChecked();
   await page.goto("/status");
   await expect(page.getByRole("heading", { name: "Parse errors (2)" })).toBeVisible();
 });

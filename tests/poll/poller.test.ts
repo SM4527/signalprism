@@ -70,6 +70,7 @@ describe("first run", () => {
       last_accession: "0009990001-26-000003",
       last_polled_at: NOW.toISOString(),
       last_error: null,
+      first_polled_at: NOW.toISOString(),
     });
   });
 });

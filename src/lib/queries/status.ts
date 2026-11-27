@@ -56,6 +56,34 @@ export function parseWarnings(db: Database.Database, limit = 50): ParseErrorRow[
   return rows.map((r) => ({ accession: r.accession_no, issuerCik: r.issuer_cik, filedAt: r.filed_at, error: r.parse_warning }));
 }
 
+export interface NotificationRow {
+  createdAt: string;
+  kind: string;
+  status: string;
+  title: string;
+  error: string | null;
+}
+
+/** Notification counts by status (all kinds). */
+export function notificationCounts(db: Database.Database): Record<string, number> {
+  const rows = db.prepare("SELECT status, count(*) AS n FROM notification_log GROUP BY status").all() as { status: string; n: number }[];
+  return Object.fromEntries(rows.map((r) => [r.status, r.n]));
+}
+
+/** The newest notifications with their titles (the stored payload carries only title, body, URL and priority). */
+export function recentNotifications(db: Database.Database, limit = 10): NotificationRow[] {
+  const rows = db
+    .prepare("SELECT created_at, kind, status, payload_json, error FROM notification_log ORDER BY id DESC LIMIT ?")
+    .all(limit) as { created_at: string; kind: string; status: string; payload_json: string; error: string | null }[];
+  return rows.map((r) => ({
+    createdAt: r.created_at,
+    kind: r.kind,
+    status: r.status,
+    title: (JSON.parse(r.payload_json) as { title: string }).title,
+    error: r.error,
+  }));
+}
+
 /** How many tickers the SEC ticker map holds and when it was last loaded (null when empty). */
 export function tickerMapInfo(db: Database.Database): { count: number; loadedAt: string | null } {
   return db.prepare("SELECT count(*) AS count, max(updated_at) AS loadedAt FROM ticker_map").get() as {

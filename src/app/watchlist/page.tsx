@@ -56,6 +56,11 @@ export default async function WatchlistPage({ searchParams }: PageProps<"/watchl
                 {c.otherTickers.length > 0 && (
                   <span className="ml-2 text-xs text-muted-foreground" data-testid="other-tickers">also {c.otherTickers.join(" ")}</span>
                 )}
+                {c.moreTickers.length > 0 && (
+                  <span className="ml-2 text-xs text-muted-foreground" data-testid="more-tickers" title={c.moreTickers.join(" ")}>
+                    +{c.moreTickers.length} other
+                  </span>
+                )}
               </td>
               <td className="pr-3"><SourceChips c={c} /></td>
               <td className="pr-3 font-mono">{c.lastFiled ?? "none"}</td>

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_PUSHOVER_URL } from "./notify/hosts.ts";
 import { DEFAULT_SEC_ARCHIVES_URL, DEFAULT_SEC_DATA_URL } from "./sec/hosts.ts";
 
 export const DEFAULT_DB_PATH = "data/signalprism.db";
@@ -21,6 +22,18 @@ const schema = z
     SEC_ARCHIVES_URL: z.string().default(DEFAULT_SEC_ARCHIVES_URL),
     FOLIOPRISM_URL: z.string().optional(),
     PRISM_NET_HOSTS: z.string().optional(),
+    /** Read only by the Pushover client and never logged or stored. */
+    PUSHOVER_APP_TOKEN: z.string().optional(),
+    PUSHOVER_USER_KEY: z.string().optional(),
+    PUSHOVER_URL: z.string().default(DEFAULT_PUSHOVER_URL),
+    /** Seeds the Rules page setting on first start. */
+    PUSH_PORTFOLIO_HINT: z.enum(["off", "flag", "detail"]).default("off"),
+    /** A signal whose filing is older than this many days at ingest is historical and never alerted. */
+    ALERT_MAX_AGE_DAYS: z.coerce.number().int().min(0).default(3),
+    RETENTION_POLL_RUN_DAYS: z.coerce.number().int().min(1).default(90),
+    RETENTION_NOTIFICATION_DAYS: z.coerce.number().int().min(1).default(365),
+    RETENTION_AUDIT_DAYS: z.coerce.number().int().min(1).default(1095),
+    RETENTION_INACTIVE_DAYS: z.coerce.number().int().min(1).default(90),
   })
   .refine((e) => e.DATA_MODE !== "live" || !!e.SEC_USER_AGENT, {
     message: "SEC_USER_AGENT is required when DATA_MODE=live",

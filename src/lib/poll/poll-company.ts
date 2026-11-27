@@ -20,27 +20,47 @@ export interface PollCounts {
   errors: number;
 }
 
-function recordFetchFailure(db: Database.Database, accession: string): number {
-  return db
-    .prepare(
-      `INSERT INTO fetch_failure (accession_no, failures) VALUES (?, 1)
-       ON CONFLICT (accession_no) DO UPDATE SET failures = failures + 1 RETURNING failures`,
-    )
-    .pluck()
-    .get(accession) as number;
+export interface PollOptions {
+  /** Passed to ingest: a filing older than this many days is historical (default 3). */
+  maxAgeDays?: number;
 }
 
-function setCursor(db: Database.Database, cik: string, now: string, lastAccession: string | null, error: string | null) {
+/** A fetch that fails in a first poll stays historical when a later poll retries it. */
+function recordFetchFailure(db: Database.Database, accession: string, historical: boolean): number {
+  return db
+    .prepare(
+      `INSERT INTO fetch_failure (accession_no, failures, historical) VALUES (?, 1, ?)
+       ON CONFLICT (accession_no) DO UPDATE SET failures = failures + 1, historical = max(historical, excluded.historical)
+       RETURNING failures`,
+    )
+    .pluck()
+    .get(accession, +historical) as number;
+}
+
+const wasHistorical = (db: Database.Database, accession: string) =>
+  db.prepare("SELECT historical FROM fetch_failure WHERE accession_no = ?").pluck().get(accession) === 1;
+
+/** `firstPoll` stamps `first_polled_at`; it is only set once the submissions request has succeeded. */
+function setCursor(
+  db: Database.Database,
+  cik: string,
+  now: string,
+  lastAccession: string | null,
+  error: string | null,
+  firstPoll = false,
+) {
   db.prepare(
-    `INSERT INTO company_cursor (cik, last_accession, last_polled_at, last_error) VALUES (?, ?, ?, ?)
+    `INSERT INTO company_cursor (cik, last_accession, last_polled_at, last_error, first_polled_at) VALUES (?, ?, ?, ?, ?)
      ON CONFLICT (cik) DO UPDATE SET last_accession = coalesce(excluded.last_accession, last_accession),
-       last_polled_at = excluded.last_polled_at, last_error = excluded.last_error`,
-  ).run(cik, lastAccession, now, error);
+       last_polled_at = excluded.last_polled_at, last_error = excluded.last_error,
+       first_polled_at = coalesce(first_polled_at, excluded.first_polled_at)`,
+  ).run(cik, lastAccession, now, error, firstPoll ? now : null);
 }
 
 /**
  * Poll one company: one submissions request, then the XML of each unseen Form 4 or 4/A of the last 13 months,
- * oldest first. A first run and a later poll are the same code. A paused client (SecPaused) propagates.
+ * oldest first. A first run and a later poll are the same code, except that everything ingested in a
+ * company's first poll is historical (never alerted), whatever the filing date. A paused client (SecPaused) propagates.
  */
 export async function pollCompany(
   db: Database.Database,
@@ -48,9 +68,11 @@ export async function pollCompany(
   urls: SecUrls,
   cik: string,
   now: Date,
+  options: PollOptions = {},
 ): Promise<PollCounts> {
   const counts: PollCounts = { filingsNew: 0, signalsNew: 0, errors: 0 };
   const stamp = now.toISOString();
+  const firstPoll = !db.prepare("SELECT first_polled_at FROM company_cursor WHERE cik = ?").pluck().get(cik);
   let lastAccession: string | null = null;
   let lastError: string | null = null;
 
@@ -76,16 +98,21 @@ export async function pollCompany(
       if (e instanceof SecPaused) throw e;
       counts.errors++;
       lastError = `fetch: ${(e as Error).message}`;
-      if (recordFetchFailure(db, entry.accession) >= MAX_FETCH_FAILURES) {
+      if (recordFetchFailure(db, entry.accession, firstPoll) >= MAX_FETCH_FAILURES) {
         saveParseError(db, entry.accession, cik, entry.filedAt, "fetch_failed");
       }
       continue;
     }
-    const result = ingestFiling(db, { accession: entry.accession, issuerCik: cik, filedAt: entry.filedAt, xml });
+    const historical = firstPoll || wasHistorical(db, entry.accession);
+    const result = ingestFiling(
+      db,
+      { accession: entry.accession, issuerCik: cik, filedAt: entry.filedAt, xml, historical },
+      { now, maxAgeDays: options.maxAgeDays },
+    );
     counts.filingsNew++;
     counts.signalsNew += result.signalIds.length;
     lastAccession = entry.accession;
   }
-  setCursor(db, cik, stamp, lastAccession, lastError);
+  setCursor(db, cik, stamp, lastAccession, lastError, firstPoll);
   return counts;
 }

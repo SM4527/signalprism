@@ -2,7 +2,11 @@ import { loadConfig } from "@/lib/config";
 import { getDb } from "@/lib/db";
 import { formatEt } from "@/lib/format";
 import { getPollStatus } from "@/lib/poll/poll-all";
-import { parseErrors, parseWarnings, pendingFetchFailures, recentPollRuns, tickerMapInfo } from "@/lib/queries/status";
+import { senderFor } from "@/lib/notify/runtime";
+import { loadNotificationConfig } from "@/lib/queries/rules";
+import {
+  notificationCounts, parseErrors, parseWarnings, pendingFetchFailures, recentNotifications, recentPollRuns, tickerMapInfo,
+} from "@/lib/queries/status";
 import { lastRefresh } from "@/lib/watchlist/refresh";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +45,17 @@ export default function StatusPage() {
   const errors = parseErrors(db);
   const warnings = parseWarnings(db);
   const tickerMap = tickerMapInfo(db);
+  const notifications = recentNotifications(db);
+  const counts = notificationCounts(db);
+  const usage = loadNotificationConfig(db)?.usage ?? null;
+  const pushoverText =
+    config.DATA_MODE === "mock"
+      ? "not used on the sample stack (would-be messages are only logged)"
+      : senderFor(config) === null
+        ? "not configured (PUSHOVER_APP_TOKEN and PUSHOVER_USER_KEY are not set)"
+        : usage
+          ? `${usage.remaining} of ${usage.limit} messages left this month, resets ${formatEt(usage.resetAt)}`
+          : "configured, no message sent yet";
 
   return (
     <div className="space-y-6">
@@ -114,10 +129,25 @@ export default function StatusPage() {
       )}
 
       <section>
-        <h2 className="mb-1 font-semibold">Integrations</h2>
-        <ul className="text-sm text-muted-foreground">
-          <li>Pushover usage: not configured yet</li>
+        <h2 className="mb-1 font-semibold">Notifications</h2>
+        <p className="mb-1 text-xs text-muted-foreground" data-testid="notification-counts">
+          {Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(", ") || "none yet"}
+        </p>
+        <ul className="space-y-1 text-sm" data-testid="notifications">
+          {notifications.map((n) => (
+            <li key={`${n.createdAt}-${n.title}-${n.kind}`} className="font-mono">
+              {formatEt(n.createdAt)} <span className="text-muted-foreground">{n.status} {n.kind}</span> {n.title}
+              {n.error && <span className="text-muted-foreground"> ({n.error})</span>}
+            </li>
+          ))}
         </ul>
+      </section>
+
+      <section>
+        <h2 className="mb-1 font-semibold">Integrations</h2>
+        <p className="text-sm text-muted-foreground" data-testid="pushover-status">
+          Pushover: {pushoverText}
+        </p>
         <FolioStatus configured={!!config.FOLIOPRISM_URL} />
         <p className="text-sm text-muted-foreground" data-testid="ticker-map-status">
           Ticker map: {tickerMap.count === 0 ? "empty" : `${tickerMap.count} tickers, loaded ${formatEt(tickerMap.loadedAt!)}`}

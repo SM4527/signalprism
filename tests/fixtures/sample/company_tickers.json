@@ -64,5 +64,7 @@
   "22": { "cik_str": 1067839, "ticker": "QQQ", "title": "Invesco QQQ Trust Series 1" },
   "23": { "cik_str": 36405, "ticker": "VTI", "title": "Vanguard Index Funds" },
   "24": { "cik_str": 1652044, "ticker": "GOOG", "title": "Alphabet Inc" },
-  "25": { "cik_str": 1067983, "ticker": "BRK-A", "title": "Berkshire Hathaway Inc" }
+  "25": { "cik_str": 1067983, "ticker": "BRK-A", "title": "Berkshire Hathaway Inc" },
+  "26": { "cik_str": 19617, "ticker": "JPM-PC", "title": "JPMorgan Chase & Co" },
+  "27": { "cik_str": 19617, "ticker": "JPM-PD", "title": "JPMorgan Chase & Co" }
 }

@@ -38,3 +38,6 @@ export function formatIncrease(pct: string | null, newPosition: boolean): string
   if (newPosition) return "New position";
   return pct === null ? "—" : `+${new Decimal(pct).toDecimalPlaces(1)}%`;
 }
+
+/** `Signals (14)`, or `Signals (261, 247 plan)` when some of them are plan buys. */
+export const formatSignalCount = (total: number, plan: number): string => `Signals (${total}${plan > 0 ? `, ${plan} plan` : ""})`;
