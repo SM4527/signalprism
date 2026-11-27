@@ -26,8 +26,6 @@ export const TICKERS = {
 /** A local stand-in for data.sec.gov and www.sec.gov, backed by the submissions and Form 4 fixtures. */
 export class FakeSec {
   requests: { path: string; userAgent: string | undefined }[] = [];
-  /** Arrival time (epoch ms) of each request, parallel to `requests`. */
-  arrivals: number[] = [];
   rules: Rule[] = [];
   /** Replaces the body served at an exact path. */
   bodies = new Map<string, string>();
@@ -37,9 +35,7 @@ export class FakeSec {
   constructor() {
     this.server = createServer((req, res) => {
       const path = req.url ?? "";
-      this.requests.push({ path, userAgent: req.headers["user-agent"] });
-      this.arrivals.push(Date.now());
-      const rule = this.rules.find((r) => r.times > 0 && path.includes(r.match));
+      this.requests.push({ path, userAgent: req.headers["user-agent"] });      const rule = this.rules.find((r) => r.times > 0 && path.includes(r.match));
       if (rule) {
         rule.times--;
         res.writeHead(rule.status, rule.headers).end();

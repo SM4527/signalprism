@@ -60,5 +60,6 @@ Next.js 16 (App Router), TypeScript strict, Node 24, Tailwind v4, shadcn/ui, SQL
 - One milestone at a time (PLAN section 14); start in plan mode; stop at the end of each milestone for review.
 - Before calling a milestone done: `npm test`, `npm run lint`, migrations apply on a fresh database, sample stack starts on :8500.
 - Ask before adding a dependency.
+- Never run git push; the user pushes. Chain verification commands with && so nothing runs after a failure.
 - Dense, scannable, dark-mode-first UI matching FolioPrism. Yellow SAMPLE DATA banner on the sample stack.
 - If a task seems to need live SEC data or personal data, stop and ask the user.
