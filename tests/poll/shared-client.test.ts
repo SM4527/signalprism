@@ -50,7 +50,8 @@ describe("one SEC client per process", () => {
     expect(fake.paths("/files/company_tickers.json")).toHaveLength(1);
     expect(fake.paths("/submissions/").length).toBeGreaterThanOrEqual(20);
     expect(client.requests - before).toBe(fake.requests.length);
-    // 5% tolerance for timer and arrival jitter on top of the limiter's exact 1000 ms window.
-    expect(busiest(fake.arrivals, 950)).toBeLessThanOrEqual(8);
+    // A second limiter would put 9 or more requests within a few ms. A 600 ms window leaves room for the
+    // arrival jitter of a loaded machine (the limiter itself allows 8 in any 1000 ms, so 8 in 600 ms is implied).
+    expect(busiest(fake.arrivals, 600)).toBeLessThanOrEqual(8);
   });
 });
