@@ -1,4 +1,5 @@
 import type { SignalListRow } from "@/lib/queries/signals";
+import { PLAN_LABEL } from "@/lib/signals/plan";
 
 const TONE = {
   good: "bg-emerald-500/15 text-emerald-300",
@@ -22,7 +23,7 @@ export function SignalBadges({ s }: { s: SignalListRow }) {
       {s.late && <Badge tone="warn">Late</Badge>}
       {s.indirect && <Badge tone="muted">Indirect</Badge>}
       {s.nonCommon && <Badge tone="muted">Non-common</Badge>}
-      {s.plan10b51 && <Badge tone="warn">10b5-1 plan</Badge>}
+      {s.planKind && <Badge tone="warn">{PLAN_LABEL[s.planKind]}</Badge>}
       {s.planSuspected &&<Badge tone="warn">10b5-1 suspected</Badge>}
       {s.formType === "4/A" && <Badge tone="muted">Amended</Badge>}
     </span>

@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { HOLDING_TABLE } from "@/lib/sec/form4-types";
 import { ROLES, type Role } from "@/lib/sec/roles";
 import { addDays } from "@/lib/signals/dates";
+import type { PlanKind } from "@/lib/signals/plan";
 import { evaluateRule, loadRules } from "@/lib/signals/rules";
 import type { ScorePart } from "@/lib/signals/score";
 
@@ -15,7 +16,7 @@ export interface SignalFilters {
   role: Role | null;
   heldOnly: boolean;
   matchesRule: boolean;
-  /** Hide signals whose Form 4 has the 10b5-1 box ticked. On by default. */
+  /** Hide plan buys (10b5-1 box, ESPP, DRIP, 401(k)). On by default. */
   hidePlan: boolean;
   sort: "filed" | "score";
 }
@@ -50,7 +51,8 @@ export interface SignalListRow {
   indirect: boolean;
   nonCommon: boolean;
   planSuspected: boolean;
-  plan10b51: boolean;
+  /** Set for a plan buy (10b5-1 box, ESPP, DRIP, 401(k)). */
+  planKind: PlanKind | null;
   heldVia: "direct" | "funds" | null;
   inCluster: boolean;
   footnotes: string[];
@@ -61,7 +63,7 @@ const SELECT = `
   SELECT s.id, c.ticker, c.name AS issuer_name, s.issuer_cik, s.filing_id, o.joint_group_id, o.owner_name, o.role,
          o.officer_title_raw AS title_raw,
          s.shares, s.value, s.avg_price, s.pct_increase, s.new_position, s.txn_date, f.filed_at, f.form_type,
-         f.accession_no, s.score, s.score_parts_json, s.late, s.indirect, s.non_common, s.plan_suspected, s.plan_10b51,
+         f.accession_no, s.score, s.score_parts_json, s.late, s.indirect, s.non_common, s.plan_suspected, s.plan_kind,
          s.held_via, s.footnotes_json,
          EXISTS (SELECT 1 FROM cluster_member m WHERE m.signal_id = s.id) AS in_cluster
   FROM signal s
@@ -96,7 +98,7 @@ function toRow(r: Record<string, string | number | null>, matches: boolean): Sig
     indirect: !!r.indirect,
     nonCommon: !!r.non_common,
     planSuspected: !!r.plan_suspected,
-    plan10b51: !!r.plan_10b51,
+    planKind: r.plan_kind as PlanKind | null,
     heldVia: r.held_via as SignalListRow["heldVia"],
     inCluster: !!r.in_cluster,
     footnotes: r.footnotes_json ? (JSON.parse(r.footnotes_json as string) as string[]) : [],
@@ -119,7 +121,7 @@ function load(db: Database.Database, where: string, params: unknown[], order: st
             newPosition: !!r.new_position,
             late: !!r.late,
             nonCommon: !!r.non_common,
-            plan10b51: !!r.plan_10b51,
+            planKind: r.plan_kind as PlanKind | null,
           },
           rule,
         ).matches,
@@ -172,7 +174,7 @@ export function listSignals(db: Database.Database, f: SignalFilters, today: stri
     .filter((r) => !f.role || r.role === f.role)
     .filter((r) => !f.heldOnly || r.heldVia !== null)
     .filter((r) => !f.matchesRule || r.matchesRule)
-    .filter((r) => !f.hidePlan || !r.plan10b51);
+    .filter((r) => !f.hidePlan || !r.planKind);
   if (f.sort === "score") rows.sort((a, b) => b.score - a.score);
   return rows.slice(0, MAX_ROWS);
 }

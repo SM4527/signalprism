@@ -148,17 +148,17 @@ describe("price missing", () => {
 });
 
 describe("10b5-1", () => {
-  it("a ticked box still builds a signal, flagged plan10b51", () => {
+  it("a ticked box still builds a signal, with plan kind 10b5-1", () => {
     const f = loadForm4("synthetic_p_10b5_box.xml");
     expect(f.plan10b51).toBe(true);
     const [s] = buildSignals(f, "2026-10-22");
-    expect(s.plan10b51).toBe(true);
+    expect(s.planKind).toBe("10b5-1");
     expect(s.planSuspected).toBe(false);
     expect(Number(s.value)).toBeGreaterThan(0);
   });
 
   it("without the box the flag is false", () => {
-    expect(one("Cat_tm2629746-1_4seq1.xml", "2026-11-13").plan10b51).toBe(false);
+    expect(one("Cat_tm2629746-1_4seq1.xml", "2026-11-13").planKind).toBeNull();
   });
 
   it("a footnote mention only sets planSuspected", () => {

@@ -40,15 +40,15 @@ test("unknown ticker is a 404", async ({ page }) => {
   expect((await page.goto("/ticker/NOPE"))?.status()).toBe(404);
 });
 
-test("10b5-1 plan buys are hidden by default and shown when the box is unchecked", async ({ page }) => {
+test("plan buys are hidden by default and shown when the box is unchecked", async ({ page }) => {
   const badge = page.getByText("10b5-1 plan", { exact: true });
   await page.goto("/?days=365");
-  await expect(page.getByLabel("Hide 10b5-1 plan buys")).toBeChecked();
+  await expect(page.getByLabel("Hide plan buys")).toBeChecked();
   await expect(badge).toHaveCount(0);
 
-  await page.getByLabel("Hide 10b5-1 plan buys").uncheck();
+  await page.getByLabel("Hide plan buys").uncheck();
   await page.getByRole("button", { name: "Apply" }).click();
-  await expect(page.getByLabel("Hide 10b5-1 plan buys")).not.toBeChecked();
+  await expect(page.getByLabel("Hide plan buys")).not.toBeChecked();
   await expect(badge.first()).toBeVisible();
 });
 

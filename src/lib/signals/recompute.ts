@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { detectClusters, saveClusters } from "./clusters";
 import { monthsBefore } from "./dates";
 import { syncHeldVia } from "./held";
+import { countsAsEarlierBuy } from "./plan";
 import { isLive, loadIssuerRows, personKey, type SignalRow } from "./issuer-rows";
 import { scoreSignal } from "./score";
 import { recomputeSupersession } from "./supersede";
@@ -11,13 +12,17 @@ const FIRST_BUY_MONTHS = 12;
 
 /**
  * True when this person has no other live signal at the issuer in the 12 months before this one.
- * A 10b5-1 plan buy never earns the points, though it still counts as an earlier buy for later signals.
+ * A plan buy never earns the points. A 10b5-1 buy still counts as an earlier buy for later signals;
+ * ESPP, DRIP and 401(k) buys do not (they are not the person's decision), so a monthly ESPP buyer's
+ * first discretionary buy still earns them.
  */
 function isFirstBuy(r: SignalRow, live: SignalRow[]): boolean {
-  if (r.plan_10b51) return false;
+  if (r.plan_kind) return false;
   const from = monthsBefore(r.txn_date, FIRST_BUY_MONTHS);
   const me = personKey(r);
-  return !live.some((o) => o.id !== r.id && personKey(o) === me && o.txn_date >= from && o.txn_date < r.txn_date);
+  return !live.some(
+    (o) => o.id !== r.id && personKey(o) === me && countsAsEarlierBuy(o.plan_kind) && o.txn_date >= from && o.txn_date < r.txn_date,
+  );
 }
 
 /**

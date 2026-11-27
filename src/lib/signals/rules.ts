@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import Decimal from "decimal.js";
 import type { Role } from "@/lib/sec/roles";
+import { PLAN_LABEL, type PlanKind } from "./plan";
 
 export interface AlertRule {
   id: number;
@@ -22,8 +23,8 @@ export interface RuleInput {
   newPosition: boolean;
   late: boolean;
   nonCommon: boolean;
-  /** The 10b5-1 box is ticked. */
-  plan10b51: boolean;
+  /** A plan buy (10b5-1 box, ESPP, DRIP, 401(k)) never matches. */
+  planKind: PlanKind | null;
 }
 
 export interface RuleResult {
@@ -33,12 +34,12 @@ export interface RuleResult {
 
 /**
  * The default rule: CEO or CFO, value >= min or increase >= min % (new position counts), not late,
- * common stock. Directors and 10% owners only when switched on. A ticked 10b5-1 box never matches.
+ * common stock. Directors and 10% owners only when switched on. A plan buy never matches.
  */
 export function evaluateRule(s: RuleInput, rule: AlertRule): RuleResult {
   const no = (reason: string): RuleResult => ({ matches: false, reasons: [reason] });
   if (!rule.enabled) return no("rule disabled");
-  if (s.plan10b51) return no("10b5-1 plan");
+  if (s.planKind) return no(`plan buy (${PLAN_LABEL[s.planKind]})`);
   if (s.nonCommon) return no("non-common security");
   if (s.late) return no("filed late");
 

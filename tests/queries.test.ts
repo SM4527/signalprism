@@ -85,7 +85,7 @@ describe("parseFilters", () => {
     });
   });
 
-  it("hides 10b5-1 plan buys by default, shows them only when the box is unchecked", () => {
+  it("hides plan buys by default, shows them only when the box is unchecked", () => {
     expect(parseFilters({}).hidePlan).toBe(true);
     expect(parseFilters({ days: "30" }).hidePlan).toBe(true);
     expect(parseFilters({ hideplan: "0" }).hidePlan).toBe(false);
@@ -124,15 +124,15 @@ describe("watchlist and status", () => {
   });
 });
 
-describe("10b5-1 plan signals", () => {
+describe("plan signals", () => {
   const all = { ...DEFAULT_FILTERS, days: 400 };
   it("are listed with the badge flag only when not hidden, and never match the rule", () => {
     const shown = listSignals(db, { ...all, hidePlan: false }, TODAY);
-    const plans = shown.filter((r) => r.plan10b51);
+    const plans = shown.filter((r) => r.planKind);
     expect(plans.length).toBeGreaterThan(0);
-    expect(plans.every((r) => !r.matchesRule && !r.inCluster)).toBe(true);
-    expect(listSignals(db, all, TODAY).some((r) => r.plan10b51)).toBe(false);
-    expect(listSignals(db, { ...all, hidePlan: false, matchesRule: true }, TODAY).some((r) => r.plan10b51)).toBe(false);
+    expect(plans.every((r) => r.planKind === "10b5-1" && !r.matchesRule && !r.inCluster)).toBe(true);
+    expect(listSignals(db, all, TODAY).some((r) => r.planKind)).toBe(false);
+    expect(listSignals(db, { ...all, hidePlan: false, matchesRule: true }, TODAY).some((r) => r.planKind)).toBe(false);
   });
 });
 

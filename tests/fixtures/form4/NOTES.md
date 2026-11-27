@@ -41,3 +41,6 @@ Real public filings, one line per file, then synthetic files (`synthetic_*.xml`:
 - `synthetic_holdings_elsewhere.xml` - director P of 2,500 in an indirect bucket (9,000 after) with `nonDerivativeHolding` rows: 24,032 direct, the same indirect bucket again (not double counted) and a different security (ignored).
 - `synthetic_new_entity_holdings.xml` - CFO P of 1,000 through a new entity (1,000 after) while 5,000 are held directly: not a new position.
 - `synthetic_table2_no_coding.xml` - CEO P in Table I plus a `derivativeTransaction` without `transactionCoding`; the filing must parse with a warning.
+- `synthetic_espp.xml` - CFO, two P lines (2026-10-15, 2026-10-30), both ESPP: the first with the real footnote wording "purchased by the administrator of the issuer's Employee Stock Purchase Plan ... terms predetermined by the issuer", the second "purchased and held under the issuer's Employee Stock Purchase Plan"; a plan buy.
+- `synthetic_espp_mixed.xml` - CEO, one discretionary P of 5,000 and one ESPP P of 80 in one filing; only the discretionary line makes the signal.
+- `synthetic_drip.xml` - director, one P of 15 shares with a dividend reinvestment plan (DRIP) footnote; a plan buy.

@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<ownershipDocument>
+    <schemaVersion>X0609</schemaVersion>
+    <documentType>4</documentType>
+    <periodOfReport>2026-10-30</periodOfReport>
+    <issuer>
+        <issuerCik>0009000021</issuerCik>
+        <issuerName>NORTHGATE INSTRUMENTS INC</issuerName>
+        <issuerTradingSymbol>NGIN</issuerTradingSymbol>
+    </issuer>
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0009100033</rptOwnerCik>
+            <rptOwnerName>Voss Mara</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerRelationship>
+            <isDirector>1</isDirector>
+            <isOfficer>0</isOfficer>
+            <isTenPercentOwner>0</isTenPercentOwner>
+            <isOther>0</isOther>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+    <aff10b5One>0</aff10b5One>
+    <nonDerivativeTable>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Shares</value></securityTitle>
+            <transactionDate><value>2026-10-30</value></transactionDate>
+            <transactionCoding><transactionFormType>4</transactionFormType><transactionCode>P</transactionCode><equitySwapInvolved>0</equitySwapInvolved><footnoteId id="F1"/></transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>15</value></transactionShares>
+                <transactionPricePerShare><value>31.80</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>3015</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature><directOrIndirectOwnership><value>D</value></directOrIndirectOwnership></ownershipNature>
+        </nonDerivativeTransaction>
+    </nonDerivativeTable>
+    <footnotes>
+        <footnote id="F1">Shares acquired through the issuer's Dividend Reinvestment Plan (DRIP).</footnote>
+    </footnotes>
+    <ownerSignature><signatureName>/s/ Mara Voss</signatureName><signatureDate>2026-11-02</signatureDate></ownerSignature>
+</ownershipDocument>

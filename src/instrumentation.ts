@@ -7,6 +7,9 @@ export async function register() {
   const config = loadConfig();
   const db = getDb(config.DB_PATH);
   seedDefaults(db);
+  const { reclassifyPlanBuys } = await import("@/lib/signals/reclassify");
+  const reclassified = reclassifyPlanBuys(db, new Date().toISOString().slice(0, 10));
+  if (reclassified > 0) console.log(`[startup] reclassified plan buys in ${reclassified} filings`);
   if (config.DATA_MODE === "mock") {
     const { seedSample } = await import("@/lib/seed-sample");
     seedSample(db, new Date().toISOString().slice(0, 10));

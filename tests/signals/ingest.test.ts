@@ -39,13 +39,13 @@ describe("ingest", () => {
   it("stores a 10b5-1 box purchase as a plan signal with no first-buy points", () => {
     const db = openDb(":memory:");
     ingestFiling(db, input("synthetic_p_10b5_box.xml", "N-2", "2026-10-22"));
-    expect(db.prepare("SELECT plan_10b51 FROM signal").pluck().get()).toBe(1);
+    expect(db.prepare("SELECT plan_kind FROM signal").pluck().get()).toBe("10b5-1");
     expect(db.prepare("SELECT score_parts_json FROM signal").pluck().get()).not.toContain("first buy");
 
     const unplanned = openDb(":memory:");
     const open = input("synthetic_p_10b5_box.xml", "N-2", "2026-10-22");
     ingestFiling(unplanned, { ...open, xml: open.xml.replace("<aff10b5One>1</aff10b5One>", "<aff10b5One>0</aff10b5One>") });
-    expect(unplanned.prepare("SELECT plan_10b51 FROM signal").pluck().get()).toBe(0);
+    expect(unplanned.prepare("SELECT plan_kind FROM signal").pluck().get()).toBeNull();
     expect(unplanned.prepare("SELECT score_parts_json FROM signal").pluck().get()).toContain("first buy");
   });
 
