@@ -26,15 +26,16 @@ export interface PollOptions {
 }
 
 /** A fetch that fails in a first poll stays historical when a later poll retries it. */
-function recordFetchFailure(db: Database.Database, accession: string, historical: boolean): number {
+function recordFetchFailure(db: Database.Database, accession: string, historical: boolean, now: string): number {
   return db
     .prepare(
-      `INSERT INTO fetch_failure (accession_no, failures, historical) VALUES (?, 1, ?)
-       ON CONFLICT (accession_no) DO UPDATE SET failures = failures + 1, historical = max(historical, excluded.historical)
+      `INSERT INTO fetch_failure (accession_no, failures, historical, updated_at) VALUES (?, 1, ?, ?)
+       ON CONFLICT (accession_no) DO UPDATE SET failures = failures + 1, historical = max(historical, excluded.historical),
+         updated_at = excluded.updated_at
        RETURNING failures`,
     )
     .pluck()
-    .get(accession, +historical) as number;
+    .get(accession, +historical, now) as number;
 }
 
 const wasHistorical = (db: Database.Database, accession: string) =>
@@ -98,7 +99,7 @@ export async function pollCompany(
       if (e instanceof SecPaused) throw e;
       counts.errors++;
       lastError = `fetch: ${(e as Error).message}`;
-      if (recordFetchFailure(db, entry.accession, firstPoll) >= MAX_FETCH_FAILURES) {
+      if (recordFetchFailure(db, entry.accession, firstPoll, stamp) >= MAX_FETCH_FAILURES) {
         saveParseError(db, entry.accession, cik, entry.filedAt, "fetch_failed");
       }
       continue;

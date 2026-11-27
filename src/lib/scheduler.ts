@@ -262,7 +262,7 @@ export function startScheduler(db: Database.Database, config: Config): Scheduler
     onClaim: () => releaseSending(db),
     maintain: (now) => {
       const r = runRetentionIfDue(db, config, now);
-      if (r) return `retention: ${r.pollRuns} poll runs, ${r.notifications} notifications, ${r.auditLines} audit lines, ${r.companies} companies removed`;
+      if (r) return `retention: ${r.pollRuns} poll runs, ${r.notifications} notifications, ${r.fetchFailures} failed fetches, ${r.auditLines} audit lines, ${r.companies} companies removed`;
     },
   });
   g.__signalprismScheduler = scheduler;

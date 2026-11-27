@@ -13,6 +13,7 @@ export type RetentionConfig = Pick<
 export interface RetentionResult {
   pollRuns: number;
   notifications: number;
+  fetchFailures: number;
   auditLines: number;
   companies: number;
 }
@@ -21,7 +22,7 @@ const daysAgo = (now: Date, days: number) => new Date(now.getTime() - days * 86_
 
 /**
  * Delete what has aged out. Signals are never deleted.
- * - poll runs and notifications older than their periods;
+ * - poll runs and notifications older than their periods, and failed fetches older than the poll-run period;
  * - audit lines (stored lines that did not become a signal) of filings filed more than the audit period ago;
  * - for each company inactive longer than the inactive period: all its stored lines, clusters, cursor, the filings
  *   and owners that have no signal, and the company row. Signals keep their filing and owner rows (foreign keys).
@@ -31,6 +32,7 @@ export function runRetention(db: Database.Database, cfg: RetentionConfig, now: D
   return db.transaction((): RetentionResult => {
     const pollRuns = db.prepare("DELETE FROM poll_run WHERE started_at < ?").run(daysAgo(now, cfg.RETENTION_POLL_RUN_DAYS)).changes;
     const notifications = db.prepare("DELETE FROM notification_log WHERE created_at < ?").run(daysAgo(now, cfg.RETENTION_NOTIFICATION_DAYS)).changes;
+    const fetchFailures = db.prepare("DELETE FROM fetch_failure WHERE updated_at < ?").run(daysAgo(now, cfg.RETENTION_POLL_RUN_DAYS)).changes;
     const auditLines = db
       .prepare(
         `DELETE FROM transaction_line WHERE id IN (
@@ -44,7 +46,7 @@ export function runRetention(db: Database.Database, cfg: RetentionConfig, now: D
       .pluck()
       .all(daysAgo(now, cfg.RETENTION_INACTIVE_DAYS)) as string[];
     for (const cik of stale) purgeCompany(db, cik);
-    return { pollRuns, notifications, auditLines, companies: stale.length };
+    return { pollRuns, notifications, fetchFailures, auditLines, companies: stale.length };
   })();
 }
 

@@ -58,6 +58,13 @@ describe("poll runs and notifications", () => {
     expect(count(db, "notification_log")).toBe(2);
   });
 
+  it("deletes failed fetches older than the poll-run period", () => {
+    const db = setup();
+    for (const days of [100, 89, 1]) db.prepare("INSERT INTO fetch_failure (accession_no, failures, updated_at) VALUES (?, 1, ?)").run(`a${days}`, iso(days));
+    expect(runRetention(db, CFG, NOW).fetchFailures).toBe(1);
+    expect(db.prepare("SELECT accession_no FROM fetch_failure ORDER BY accession_no").pluck().all()).toEqual(["a1", "a89"]);
+  });
+
   it("honours the configured periods", () => {
     const db = setup();
     db.prepare("INSERT INTO poll_run (started_at) VALUES (?)").run(iso(20));
