@@ -21,6 +21,7 @@ export const SignalsQuery = z.strictObject({
   minScore: z.coerce.number().int().min(0).default(0),
   role: z.enum(ROLES).optional(),
   heldOnly: flag.default(false),
+  watchedOnly: flag.default(true),
   includePlan: flag.default(false),
 });
 export const ClustersQuery = z.strictObject({ days: days.default(30) });
@@ -73,11 +74,11 @@ const clusterItem = (c: ClusterDetail): ClusterItem => ({
 });
 
 export function buildSignals(db: Database.Database, q: z.infer<typeof SignalsQuery>, now: Date): SignalsResponse {
-  const filters = { ...DEFAULT_FILTERS, days: q.days, minScore: q.minScore, role: q.role ?? null, heldOnly: q.heldOnly, hidePlan: !q.includePlan };
+  const filters = { ...DEFAULT_FILTERS, days: q.days, minScore: q.minScore, role: q.role ?? null, heldOnly: q.heldOnly, watchedOnly: q.watchedOnly, hidePlan: !q.includePlan };
   const rows = listSignals(db, filters, etToday(now));
   return SignalsResponse.parse({
     as_of: etNow(now),
-    filters: { days: q.days, min_score: q.minScore, role: q.role ?? null, held_only: q.heldOnly, include_plan: q.includePlan },
+    filters: { days: q.days, min_score: q.minScore, role: q.role ?? null, held_only: q.heldOnly, watched_only: q.watchedOnly, include_plan: q.includePlan },
     count: rows.length,
     truncated: rows.length === MAX_ROWS,
     signals: rows.map(signalItem),

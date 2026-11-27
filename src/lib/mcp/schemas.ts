@@ -49,6 +49,7 @@ export const SignalsResponse = z.strictObject({
     min_score: z.number().int(),
     role: role.nullable(),
     held_only: z.boolean(),
+    watched_only: z.boolean().describe("Only companies currently active on the watch list; on by default, off adds signals of removed companies"),
     include_plan: z.boolean().describe("Include plan buys (10b5-1, ESPP, DRIP, 401(k)); off by default"),
   }),
   count: z.number().int(),

@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { GET } from "@/app/api/mcp/signals/route";
+import { getDb } from "@/lib/db";
 import { SignalsResponse } from "@/lib/mcp/schemas";
 import { req, seedRouteDb } from "./helpers";
 
@@ -16,7 +17,7 @@ describe("GET /api/mcp/signals", () => {
     expect(status).toBe(200);
     const parsed = SignalsResponse.parse(body);
     expect(parsed.as_of).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2} ET$/);
-    expect(parsed.filters).toEqual({ days: 30, min_score: 0, role: null, held_only: false, include_plan: false });
+    expect(parsed.filters).toEqual({ days: 30, min_score: 0, role: null, held_only: false, watched_only: true, include_plan: false });
     expect(parsed.count).toBe(parsed.signals.length);
     expect(parsed.count).toBeGreaterThan(0);
   });
@@ -53,7 +54,24 @@ describe("GET /api/mcp/signals", () => {
     expect(held.signals.every((s) => s.held_via !== null)).toBe(true);
   });
 
-  it.each(["days=0", "days=abc", "role=KING", "heldOnly=maybe", "bogus=1"])("rejects %s with 400", async (q) => {
+  it("watchedOnly defaults on; signals of a removed company appear only when it is off", async () => {
+    const db = getDb(":memory:");
+    const cik = db.prepare("SELECT s.issuer_cik FROM signal s JOIN company c ON c.cik = s.issuer_cik WHERE c.active = 1 LIMIT 1").pluck().get() as string;
+    const ticker = db.prepare("SELECT ticker FROM company WHERE cik = ?").pluck().get(cik) as string;
+    const has = (b: unknown) => SignalsResponse.parse(b).signals.some((s) => s.ticker === ticker);
+    db.prepare("UPDATE company SET active = 0 WHERE cik = ?").run(cik);
+    try {
+      expect(has((await get("?days=400&includePlan=1")).body)).toBe(false);
+      const off = SignalsResponse.parse((await get("?days=400&includePlan=1&watchedOnly=0")).body);
+      expect(off.filters.watched_only).toBe(false);
+      expect(has(off)).toBe(true);
+    } finally {
+      db.prepare("UPDATE company SET active = 1 WHERE cik = ?").run(cik);
+    }
+    expect(has((await get("?days=400&includePlan=1")).body)).toBe(true);
+  });
+
+  it.each(["days=0", "days=abc", "role=KING", "heldOnly=maybe", "watchedOnly=maybe","bogus=1"])("rejects %s with 400", async (q) => {
     const { status, body } = await get(`?${q}`);
     expect(status).toBe(400);
     expect(body.error).toBeTruthy();

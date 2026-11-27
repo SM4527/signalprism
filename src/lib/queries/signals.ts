@@ -15,6 +15,8 @@ export interface SignalFilters {
   minScore: number;
   role: Role | null;
   heldOnly: boolean;
+  /** Only issuers currently active on the watch list; off shows the history of removed companies too. On by default. */
+  watchedOnly: boolean;
   matchesRule: boolean;
   /** Hide plan buys (10b5-1 box, ESPP, DRIP, 401(k)). On by default. */
   hidePlan: boolean;
@@ -22,7 +24,7 @@ export interface SignalFilters {
 }
 
 export const DEFAULT_FILTERS: SignalFilters = {
-  days: DEFAULT_DAYS, minScore: 0, role: null, heldOnly: false, matchesRule: false, hidePlan: true, sort: "filed",
+  days: DEFAULT_DAYS, minScore: 0, role: null, heldOnly: false, watchedOnly: true, matchesRule: false, hidePlan: true, sort: "filed",
 };
 
 export interface SignalListRow {
@@ -169,7 +171,8 @@ export function groupJoint(rows: SignalListRow[]): SignalListRow[] {
  * score), at most 200 rows. Filters apply to the grouped row (its highest role and score).
  */
 export function listSignals(db: Database.Database, f: SignalFilters, today: string): SignalListRow[] {
-  const rows = groupJoint(load(db, "AND f.filed_at >= ?", [addDays(today, -f.days)], NEWEST_FIRST))
+  const watched = f.watchedOnly ? "AND c.active = 1" : "";
+  const rows = groupJoint(load(db, `AND f.filed_at >= ? ${watched}`, [addDays(today, -f.days)], NEWEST_FIRST))
     .filter((r) => r.score >= f.minScore)
     .filter((r) => !f.role || r.role === f.role)
     .filter((r) => !f.heldOnly || r.heldVia !== null)
@@ -244,6 +247,7 @@ export function parseFilters(q: Record<string, string | string[] | undefined>): 
   const one = (k: string) => (Array.isArray(q[k]) ? q[k][0] : q[k]);
   const all = (k: string) => (Array.isArray(q[k]) ? q[k] : q[k] === undefined ? [] : [q[k]]);
   const hide = all("hideplan");
+  const watched = all("watched");
   const days = Number(one("days"));
   const minScore = Number(one("min"));
   const role = one("role");
@@ -252,6 +256,8 @@ export function parseFilters(q: Record<string, string | string[] | undefined>): 
     minScore: Number.isInteger(minScore) && minScore > 0 ? minScore : 0,
     role: (ROLES as readonly string[]).includes(role ?? "") ? (role as Role) : null,
     heldOnly: one("held") === "1",
+    // Same hidden-input pattern as hideplan: no parameter means the default, on.
+    watchedOnly: watched.length === 0 || watched.includes("1"),
     matchesRule: one("rule") === "1",
     // The form sends hideplan=0 when unchecked and 0 then 1 when checked; no parameter at all means the default, on.
     hidePlan: hide.length === 0 || hide.includes("1"),

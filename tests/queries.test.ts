@@ -15,7 +15,7 @@ seedDefaults(db);
 seedSample(db, TODAY);
 
 describe("listSignals", () => {
-  const all = { ...DEFAULT_FILTERS, days: 400, hidePlan: false };
+  const all = { ...DEFAULT_FILTERS, days: 400, hidePlan: false, watchedOnly: false };
 
   it("hides superseded signals", () => {
     const live = db
@@ -73,6 +73,20 @@ describe("listSignals", () => {
   it("flags a cluster member", () => {
     expect(listSignals(db, all, TODAY).some((r) => r.inCluster)).toBe(true);
   });
+
+  it("watched only hides signals of a removed company; off shows them, and the ticker page always does", () => {
+    const cik = db.prepare("SELECT s.issuer_cik FROM signal s JOIN company c ON c.cik = s.issuer_cik WHERE c.active = 1 LIMIT 1").pluck().get() as string;
+    const removed = (rows: SignalListRow[]) => rows.filter((r) => r.issuerCik === cik);
+    db.prepare("UPDATE company SET active = 0 WHERE cik = ?").run(cik);
+    try {
+      expect(removed(listSignals(db, { ...all, watchedOnly: true }, TODAY))).toHaveLength(0);
+      expect(removed(listSignals(db, { ...all, watchedOnly: false }, TODAY)).length).toBeGreaterThan(0);
+      expect(signalsForIssuer(db, cik).length).toBeGreaterThan(0);
+    } finally {
+      db.prepare("UPDATE company SET active = 1 WHERE cik = ?").run(cik);
+    }
+    expect(removed(listSignals(db, { ...all, watchedOnly: true }, TODAY)).length).toBeGreaterThan(0);
+  });
 });
 
 describe("parseFilters", () => {
@@ -81,7 +95,7 @@ describe("parseFilters", () => {
   });
   it("reads valid values", () => {
     expect(parseFilters({ days: "90", min: "4", role: "CFO", held: "1", rule: "1", sort: "score", hideplan: ["0", "1"] })).toEqual({
-      days: 90, minScore: 4, role: "CFO", heldOnly: true, matchesRule: true, hidePlan: true, sort: "score",
+      days: 90, minScore: 4, role: "CFO", heldOnly: true, watchedOnly: true, matchesRule: true, hidePlan: true, sort: "score",
     });
   });
 
@@ -90,6 +104,12 @@ describe("parseFilters", () => {
     expect(parseFilters({ days: "30" }).hidePlan).toBe(true);
     expect(parseFilters({ hideplan: "0" }).hidePlan).toBe(false);
     expect(parseFilters({ hideplan: ["0", "1"] }).hidePlan).toBe(true);
+  });
+
+  it("watched only is on by default and off only when the box is unchecked", () => {
+    expect(parseFilters({}).watchedOnly).toBe(true);
+    expect(parseFilters({ watched: "0" }).watchedOnly).toBe(false);
+    expect(parseFilters({ watched: ["0", "1"] }).watchedOnly).toBe(true);
   });
 });
 
@@ -212,7 +232,7 @@ describe("joint filers", () => {
     seedDefaults(joint);
     ingestFiling(joint, { accession: "J-1", issuerCik: "0000000000", filedAt: "2026-11-20", xml: fixtureXml("synthetic_joint_filers.xml") });
     const owners = joint.prepare("SELECT count(*) FROM signal").pluck().get() as number;
-    const rows = listSignals(joint, { ...DEFAULT_FILTERS, days: 400 }, TODAY);
+    const rows = listSignals(joint, { ...DEFAULT_FILTERS, days: 400, watchedOnly: false }, TODAY);
     expect(owners).toBe(2);
     expect(rows).toHaveLength(1);
     expect(rows[0].ownerNames).toHaveLength(2);

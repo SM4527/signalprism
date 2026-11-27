@@ -83,7 +83,7 @@ describe("plan buys in the database", () => {
     expect(count(db, "signal")).toBe(2);
     expect(db.prepare("SELECT DISTINCT plan_kind FROM signal").pluck().all()).toEqual(["espp"]);
     expect(count(db, "cluster")).toBe(0);
-    const all = { ...DEFAULT_FILTERS, days: 400, hidePlan: false };
+    const all = { ...DEFAULT_FILTERS, days: 400, hidePlan: false, watchedOnly: false };
     expect(listSignals(db, all, TODAY).every((r) => r.planKind === "espp" && !r.matchesRule && !r.inCluster)).toBe(true);
     expect(listSignals(db, DEFAULT_FILTERS, TODAY)).toEqual([]);
     expect(db.prepare("SELECT group_concat(score_parts_json) FROM signal").pluck().get()).not.toContain("first buy");
@@ -93,7 +93,7 @@ describe("plan buys in the database", () => {
     const db = openDb(":memory:");
     seedDefaults(db);
     ingest(db, "M-1", fixtureXml("synthetic_espp_mixed.xml"));
-    const [row] = listSignals(db, { ...DEFAULT_FILTERS, days: 400 }, TODAY);
+    const [row] = listSignals(db, { ...DEFAULT_FILTERS, days: 400, watchedOnly: false }, TODAY);
     expect(row).toMatchObject({ planKind: null, shares: "5000", value: "158000", matchesRule: true });
     expect(db.prepare("SELECT count(*) FROM transaction_line WHERE code = 'P'").pluck().get()).toBe(2);
   });
