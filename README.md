@@ -1,5 +1,9 @@
 # SignalPrism
 
+[![CI](https://github.com/SM4527/signalprism/actions/workflows/ci.yml/badge.svg)](https://github.com/SM4527/signalprism/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/SM4527/signalprism)](https://github.com/SM4527/signalprism/releases)
+
 Self-hosted SEC Form 4 tracker for a personal watch list. It polls SEC EDGAR for the companies you follow, keeps only open-market purchases (code P), scores them into signals, detects cluster buying and sends Pushover alerts. The default alert rule is a CEO or CFO buy of at least $100K or a 10% holdings increase.
 
 SignalPrism is a personal research tool, not investment advice.
@@ -12,7 +16,7 @@ SignalPrism is a personal research tool, not investment advice.
 - Only non-derivative open-market purchases count. Option exercises, grants, conversions and tax withholdings are stored for audit, never alerted.
 - One signal per insider per filing, with a deterministic score and its breakdown shown. Clusters are 2+ insiders within 30 days, at least one an officer.
 - Plan buys (10b5-1, ESPP, DRIP, 401(k)) are shown with a badge but never alerted or clustered.
-- Optional FolioPrism bridge builds the watch list from your holdings and marks held stocks.
+- Optional [FolioPrism](https://github.com/SM4527/folioprism) bridge builds the watch list from your holdings and marks held stocks.
 
 **Tech stack:** Next.js 16 (App Router) with React 19 and TypeScript, Tailwind CSS v4 and shadcn/ui, SQLite via better-sqlite3 (plain SQL migrations), fast-xml-parser and zod for Form 4 parsing, Vitest for unit tests and Playwright for e2e. Runs on Node 24 in a Docker container (`node:24-slim`, `docker/Dockerfile`), with an in-process scheduler.
 
@@ -159,7 +163,7 @@ git config core.hooksPath scripts/hooks
 
 ## Built with Claude Code
 
-Built with [Claude Code](https://claude.com/claude-code).
+Plan, code and tests were written in milestone sessions with [Claude Code](https://claude.com/claude-code), each milestone planned in plan mode and reviewed before commit. Testing against real SEC filings on the personal stack drove several fixes (ESPP and DRIP plan buys, holdings reported in other accounts, share-class tickers).
 
 ## License
 
