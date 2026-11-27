@@ -39,7 +39,7 @@ export const SignalItem = z.strictObject({
   badges: z.array(z.string()).describe("late, indirect, non-common, plan:<kind>, plan-suspected, cluster"),
   rule_match: z.boolean().describe("Matches the default alert rule"),
   held_via: heldVia,
-  sec_url: z.string().describe("Link to the filing index on sec.gov"),
+  sec_url: z.string().describe("Link to the filing index on SEC EDGAR"),
 });
 
 export const SignalsResponse = z.strictObject({
