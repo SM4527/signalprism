@@ -1,12 +1,42 @@
 # SignalPrism
 
-Self-hosted Form 4 tracker. It polls SEC EDGAR for a personal watch list, keeps only open-market purchases (code P), scores them into signals, detects clusters and sends Pushover alerts. Status: milestone 0 (skeleton); the parser and signals follow.
+Self-hosted SEC Form 4 tracker for a personal watch list. It polls SEC EDGAR for the companies you follow, keeps only open-market purchases (code P), scores them into signals, detects cluster buying and sends Pushover alerts. The default alert rule is a CEO or CFO buy of at least $100K or a 10% holdings increase.
 
 SignalPrism is a personal research tool, not investment advice.
 
+![Signals](docs/screenshots/signals.png)
+
+## What it does
+
+- Source is SEC EDGAR only (submissions JSON and Form 4 XML); no third-party sites are scraped.
+- Only non-derivative open-market purchases count. Option exercises, grants, conversions and tax withholdings are stored for audit, never alerted.
+- One signal per insider per filing, with a deterministic score and its breakdown shown. Clusters are 2+ insiders within 30 days, at least one an officer.
+- Plan buys (10b5-1, ESPP, DRIP, 401(k)) are shown with a badge but never alerted or clustered.
+- Optional FolioPrism bridge builds the watch list from your holdings and marks held stocks.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    SEC[SEC EDGAR] -->|"8 req/s, declared User-Agent"| P[Poller]
+    FP[FolioPrism] -->|GET holdings| W[Watch list builder]
+    W --> P
+    P --> DB[(SQLite)]
+    DB --> UI[Web UI]
+    DB --> A[Alerts] --> PO[Pushover]
+    DB --> M["/api/mcp (GET, loopback)"]
+```
+
+## Screens
+
+| | |
+|---|---|
+| ![Ticker](docs/screenshots/ticker.png) | ![Watchlist](docs/screenshots/watchlist.png) |
+| ![Rules](docs/screenshots/rules.png) | ![Status](docs/screenshots/status.png) |
+
 ## Sample stack
 
-Runs on fixtures with `DATA_MODE=mock`; it never calls sec.gov or Pushover.
+Runs on fixtures with `DATA_MODE=mock`; it never calls sec.gov or Pushover. A yellow SAMPLE DATA banner marks it.
 
 ```
 scripts/start.sh     # http://127.0.0.1:8500
@@ -33,6 +63,10 @@ docker compose --env-file .env.personal -p signalprism-personal -f docker/compos
 
 The container logs one line per scheduler event (started, lock claimed or waiting, tick ran or skipped, next tick in ET).
 
+## SEC fair access
+
+Every request carries a declared `SEC_USER_AGENT` (live mode refuses to start without it), all requests share one limiter at 8 requests per second, 429/403/503 answers back off exponentially, and repeated 403s pause polling for an hour and show a banner.
+
 ## FolioPrism
 
 Set `FOLIOPRISM_URL` and the watch list is rebuilt from FolioPrism at start, daily, and with the "Refresh from FolioPrism" button on Watchlist: direct stocks plus the top 25 stocks held through funds. Funds are told apart by FolioPrism's own data, never by SEC company numbers. Manual tickers stay. Badges and the "Held now" filter show current holdings, so older signals show today's holdings. Holdings stay in memory; only `in_direct`, `in_funds`, `in_portfolio` and `held_via` are stored.
@@ -49,7 +83,22 @@ A new CEO or CFO buy (default: at least $100K or a 10% holdings increase, not la
 
 Set `PUSHOVER_APP_TOKEN` and `PUSHOVER_USER_KEY` in `.env.personal` (never committed; they are only read by the client and never logged or stored). Without them, or on the sample stack, nothing is sent: the sample stack logs the would-be messages. `PUSH_PORTFOLIO_HINT` (`off`, `flag`, `detail`) seeds the Rules page setting; default `off`. Delivery is at-least-once: a crash during a request can repeat a push, never lose one.
 
-Housekeeping runs weekly in the scheduler: poll runs and failed fetches older than 90 days, notifications older than a year, stored lines that did not become a signal older than 3 years, and the stored data (not the signals) of companies inactive for 90 days are deleted, then the database is vacuumed (`RETENTION_*` variables change the periods).
+Pushover note: alerts reveal which stocks you follow to an outside service. Enable Pushover end-to-end encryption.
+
+Housekeeping runs weekly in the scheduler and deletes old poll runs, failed fetches, notifications, audit lines and the stored data of long-inactive companies, never signals (`RETENTION_*` variables change the periods).
+
+## Prism MCP
+
+`GET /api/mcp/signals`, `/clusters`, `/ticker/[symbol]` and `/status` serve read-only JSON, bound to `127.0.0.1` and answering loopback requests only. The only portfolio information returned is the `held_via` flag, never dollar holdings. The matching `signalprism_*` tools live in [prism-mcp](https://github.com/SM4527/prism-mcp); a local model (for example in LM Studio) can answer questions about signals with no data leaving the machine.
+
+## Limitations
+
+- Form 4 only; no 13F, no market-wide discovery.
+- A 13-month history window.
+- Plan buys (10b5-1, ESPP, DRIP, 401(k)) are shown but never alerted.
+- "Held now" reflects current holdings, so older signals show today's holdings.
+- Foreign private issuers rarely file Form 4, so they rarely show up.
+- No price-performance tracking yet.
 
 ## Development
 
@@ -61,7 +110,5 @@ npm run privacy
 ```
 
 Docker files live in `docker/`. A separate personal stack (`docker/compose.personal.yml`, started only by `scripts/personal-start.sh`) uses live data; its port is port 8510 and it is configured in `.env.personal`, which is never committed. It pairs with the personal FolioPrism on port 8430.
-
-Pushover alerts reveal which stocks you follow to an outside service; enable Pushover end-to-end encryption.
 
 License: MIT.

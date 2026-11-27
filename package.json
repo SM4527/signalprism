@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "e2e": "playwright test",
+    "shots": "playwright test e2e/screenshots.spec.ts",
     "privacy": "bash scripts/privacy-scan.sh",
     "watch:add": "node scripts/watch-add.ts",
     "watch:remove": "node scripts/watch-remove.ts",
