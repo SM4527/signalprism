@@ -14,6 +14,8 @@ SignalPrism is a personal research tool, not investment advice.
 - Plan buys (10b5-1, ESPP, DRIP, 401(k)) are shown with a badge but never alerted or clustered.
 - Optional FolioPrism bridge builds the watch list from your holdings and marks held stocks.
 
+**Tech stack:** Next.js 16 (App Router) with React 19 and TypeScript, Tailwind CSS v4 and shadcn/ui, SQLite via better-sqlite3 (plain SQL migrations), fast-xml-parser and zod for Form 4 parsing, Vitest for unit tests and Playwright for e2e. Runs on Node 24 in a Docker container (`node:24-slim`, `docker/Dockerfile`), with an in-process scheduler.
+
 ## Architecture
 
 ```mermaid
@@ -34,14 +36,22 @@ flowchart LR
 | ![Ticker](docs/screenshots/ticker.png) | ![Watchlist](docs/screenshots/watchlist.png) |
 | ![Rules](docs/screenshots/rules.png) | ![Status](docs/screenshots/status.png) |
 
-## Sample stack
+## Run and stop
 
-Runs on fixtures with `DATA_MODE=mock`; it never calls sec.gov or Pushover. A yellow SAMPLE DATA banner marks it.
+| | Sample stack (default) | Personal stack (optional) |
+|---|---|---|
+| Data | Fixtures, `DATA_MODE=mock`; never calls sec.gov or Pushover | Live SEC data, `DATA_MODE=live` |
+| Banner | Yellow SAMPLE DATA | None |
+| URL | `http://127.0.0.1:8500` | `http://127.0.0.1:<PERSONAL_PORT>` |
+| Compose file | `docker/compose.yaml` (project `signalprism-sample`) | `docker/compose.personal.yml` (project `signalprism-personal`) |
+| Config | Built into the compose file | `.env.personal` (never committed) |
+| Volume | `data/sample` | `data/local` |
+| Scripts | `start.sh`, `restart.sh`, `logs.sh`, `stop.sh` | `personal-start.sh`, `personal-logs.sh`, `personal-stop.sh` |
 
 ```
-scripts/start.sh     # http://127.0.0.1:8500
-scripts/logs.sh
-scripts/stop.sh
+./scripts/start.sh     # http://127.0.0.1:8500
+./scripts/logs.sh
+./scripts/stop.sh
 ```
 
 ## Watch list
@@ -91,6 +101,28 @@ Housekeeping runs weekly in the scheduler and deletes old poll runs, failed fetc
 
 `GET /api/mcp/signals`, `/clusters`, `/ticker/[symbol]` and `/status` serve read-only JSON, bound to `127.0.0.1` and answering loopback requests only. The only portfolio information returned is the `held_via` flag, never dollar holdings. The matching `signalprism_*` tools live in [prism-mcp](https://github.com/SM4527/prism-mcp); a local model (for example in LM Studio) can answer questions about signals with no data leaving the machine.
 
+## Personal stack (optional)
+
+Live data for your real watch list, on its own port (8510, set by `PERSONAL_PORT`) and its own database in `data/local`. It is started and stopped only by you; the sample stack is what to use for development and demos.
+
+Create `.env.personal` in the repository root (it is never committed):
+
+```
+PERSONAL_PORT=<port>
+SEC_USER_AGENT="Your Name your@email.example"
+FOLIOPRISM_URL=http://host.docker.internal:<port>
+PUSHOVER_APP_TOKEN=...
+PUSHOVER_USER_KEY=...
+```
+
+`SEC_USER_AGENT` is required in live mode. `FOLIOPRISM_URL` is optional and points at your personal FolioPrism (port 8430). Pushover keys are optional; without them nothing is sent.
+
+```
+./scripts/personal-start.sh   # http://127.0.0.1:<PERSONAL_PORT>
+./scripts/personal-logs.sh
+./scripts/personal-stop.sh
+```
+
 ## Limitations
 
 - Form 4 only; no 13F, no market-wide discovery.
@@ -100,15 +132,35 @@ Housekeeping runs weekly in the scheduler and deletes old poll runs, failed fetc
 - Foreign private issuers rarely file Form 4, so they rarely show up.
 - No price-performance tracking yet.
 
+## Troubleshooting
+
+- **Live mode refuses to start:** `SEC_USER_AGENT` is missing. Set it in `.env.personal` and restart.
+- **Polling paused for an hour with a banner:** SEC answered repeated `403`s. Check that `SEC_USER_AGENT` is a real declared contact; polling resumes by itself.
+- **FolioPrism not reachable from the container:** `host.docker.internal` is mapped in both compose files. If it still fails, use the `prism-net` fallback described under FolioPrism and list the host in `PRISM_NET_HOSTS`. The app also refuses hosts that are not allowed.
+- **Inspecting what happened:** `./scripts/logs.sh` (sample) or `./scripts/personal-logs.sh` (personal) shows one line per scheduler event.
+
 ## Development
 
 ```
 npm install
 npm run lint
 npm test
+npm run e2e
 npm run privacy
 ```
 
-Docker files live in `docker/`. A separate personal stack (`docker/compose.personal.yml`, started only by `scripts/personal-start.sh`) uses live data; its port is port 8510 and it is configured in `.env.personal`, which is never committed. It pairs with the personal FolioPrism on port 8430.
+Dockerfile and compose files live in `docker/`.
 
-License: MIT.
+`npm run privacy` scans for personal data and the personal ports. The pre-push hook in `scripts/hooks/pre-push` runs it on the commits being pushed and refuses a dirty tracked tree. Enable it once per clone:
+
+```
+git config core.hooksPath scripts/hooks
+```
+
+## Built with Claude Code
+
+Built with [Claude Code](https://claude.com/claude-code).
+
+## License
+
+MIT. See [LICENSE](LICENSE).
