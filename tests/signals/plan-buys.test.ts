@@ -23,11 +23,14 @@ describe("planKindOfFootnotes", () => {
     [["EMPLOYEE STOCK PURCHASE PLAN"], "espp"],
     [["Acquired under the Dividend Reinvestment Plan."], "drip"],
     [["Shares acquired through the DRIP."], "drip"],
+    [["Represents shares acquired through the reinvestment of dividends on restricted stock."], "drip"],
+    [["Dividends were reinvested."], "drip"],
+    [["REINVEST the DIVIDEND"], "drip"],
+    [["reinvestment of cash", "dividend paid in cash"], null],
+    [["Includes adjustments for dividends accrued."], null],
     [["Held in the Company 401(k) plan."], "401k"],
     [["ESPP and 401(k)"], "espp"],
     [[], null],
-    [["Includes adjustments for dividends accrued."], null],
-    [["Represents shares acquired through the reinvestment of dividends on restricted stock."], null],
     [["a dripping tap"], null],
   ] as const)("%j -> %s", (footnotes, kind) => {
     expect(planKindOfFootnotes([...footnotes])).toBe(kind);
@@ -134,6 +137,18 @@ describe("one-time reclassification of stored data", () => {
 
     expect(reclassifyPlanBuys(db, TODAY)).toBe(1);
     expect(db.prepare("SELECT shares, value, plan_kind FROM signal").get()).toEqual({ shares: "5000", value: "158000", plan_kind: null });
+  });
+
+  it("runs again on data that the first version of the step already handled", () => {
+    const db = openDb(":memory:");
+    ingest(db, "S-1", fixtureXml("SPG_form4-10012026_071044.xml"), "2026-10-01");
+    expect(db.prepare("SELECT plan_kind FROM signal").pluck().get()).toBe("drip");
+    db.prepare("UPDATE signal SET plan_kind = NULL").run();
+    db.prepare("DELETE FROM maintenance_done").run();
+    db.prepare("INSERT INTO maintenance_done VALUES ('plan-kind-from-footnotes', '2026-11-26T00:00:00Z')").run();
+
+    expect(reclassifyPlanBuys(db, TODAY)).toBe(1);
+    expect(db.prepare("SELECT plan_kind FROM signal").pluck().get()).toBe("drip");
   });
 
   it("leaves discretionary filings alone and runs only once", () => {

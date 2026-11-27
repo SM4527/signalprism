@@ -130,7 +130,8 @@ describe("plan signals", () => {
     const shown = listSignals(db, { ...all, hidePlan: false }, TODAY);
     const plans = shown.filter((r) => r.planKind);
     expect(plans.length).toBeGreaterThan(0);
-    expect(plans.every((r) => r.planKind === "10b5-1" && !r.matchesRule && !r.inCluster)).toBe(true);
+    expect(plans.every((r) => !r.matchesRule && !r.inCluster)).toBe(true);
+    expect(plans.map((r) => r.planKind).sort()).toEqual(["10b5-1", "drip"]);
     expect(listSignals(db, all, TODAY).some((r) => r.planKind)).toBe(false);
     expect(listSignals(db, { ...all, hidePlan: false, matchesRule: true }, TODAY).some((r) => r.planKind)).toBe(false);
   });

@@ -31,9 +31,9 @@ describe("real P fixtures (hand-checked)", () => {
     });
   });
 
-  it("SPG: dividend-reinvestment P still builds a signal with its footnote", () => {
+  it("SPG: dividend-reinvestment P builds a DRIP plan signal with its footnote", () => {
     const s = one("SPG_form4-10012026_071044.xml", "2026-10-01");
-    expect(s).toMatchObject({ value: "17844.64", ownedBefore: "8047", pctIncrease: "1.0936" });
+    expect(s).toMatchObject({ value: "17844.64", ownedBefore: "8047", pctIncrease: "1.0936", planKind: "drip" });
     expect(s.footnotes[0]).toMatch(/reinvestment of dividends/);
   });
 });

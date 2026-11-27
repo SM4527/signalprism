@@ -3,7 +3,8 @@ import { HOLDING_TABLE, type Line } from "@/lib/sec/form4-types";
 import { recomputeIssuer } from "./recompute";
 import { selectBuys, summarizeBuys } from "./signal-builder";
 
-const TASK = "plan-kind-from-footnotes";
+/** Bump the suffix when the footnote patterns change, so the step runs again on stored data. */
+const TASK = "plan-kind-from-footnotes-v2";
 
 interface LineRow {
   seq: number;
