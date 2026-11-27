@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { SampleBanner } from "@/components/mode-banner";
 import { Nav } from "@/components/nav";
 import { loadConfig } from "@/lib/config";
 import { getDb } from "@/lib/db";
@@ -20,7 +21,6 @@ export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   const config = loadConfig();
-  const sample = config.DATA_MODE === "mock";
   const pausedUntil = getPollStatus(getDb(config.DB_PATH), new Date()).pausedUntil;
   return (
     <html
@@ -28,17 +28,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        {sample && (
-          <div className="bg-yellow-400 text-black text-center text-sm font-semibold py-1">
-            SAMPLE DATA
-          </div>
-        )}
+        <SampleBanner mode={config.DATA_MODE} />
         {pausedUntil && (
           <div role="alert" className="bg-red-600 text-white text-center text-sm font-semibold py-1">
             SEC polling is paused until {formatEt(pausedUntil)} after repeated 403 responses.
           </div>
         )}
-        <Nav />
+        <Nav mode={config.DATA_MODE} />
         <main className="flex-1 p-6">{children}</main>
         <footer className="border-t border-border p-4 text-xs text-muted-foreground">
           SignalPrism is a personal research tool, not investment advice.

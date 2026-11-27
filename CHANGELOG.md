@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Blue "Personal" badge in the nav when `DATA_MODE=live`; the SAMPLE DATA banner is mock-only.
+
 ## [0.1.0] - 2026-11-27
 
 First release: a self-hosted Form 4 tracker for a personal watch list.

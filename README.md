@@ -41,7 +41,7 @@ flowchart LR
 | | Sample stack (default) | Personal stack (optional) |
 |---|---|---|
 | Data | Fixtures, `DATA_MODE=mock`; never calls sec.gov or Pushover | Live SEC data, `DATA_MODE=live` |
-| Banner | Yellow SAMPLE DATA | None |
+| Indicator | Yellow SAMPLE DATA banner | Blue "Personal" badge in the nav |
 | URL | `http://127.0.0.1:8500` | `http://127.0.0.1:<PERSONAL_PORT>` |
 | Compose file | `docker/compose.yaml` (project `signalprism-sample`) | `docker/compose.personal.yml` (project `signalprism-personal`) |
 | Config | Built into the compose file | `.env.personal` (never committed) |
